@@ -1,9 +1,11 @@
 <template>
-  <header class="app-header">
-    <div class="logo-container">
-      <img src="/src/assets/Greenatom_horizont_rus_blue.png" alt="Logo" class="logo" />
+  <header
+    class="flex items-center justify-between bg-white px-[120px] shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
+  >
+    <div class="m-2 flex items-center">
+      <img src="/src/assets/Greenatom_horizont_rus_blue.png" alt="Logo" class="h-[60px] w-auto" />
     </div>
-    <nav class="boards-links">
+    <nav class="flex h-full flex-1 items-center justify-center gap-2.5">
       <Button as="RouterLink" variant="text" to="/main">Главная</Button>
       <Button as="RouterLink" variant="text" to="/">О нас</Button>
       <Button as="RouterLink" variant="text" to="/employees">Сотрудники</Button>
@@ -14,15 +16,15 @@
         </template>
 
         <template #option="slotProps">
-          <div class="board-option">
-            <span class="board-option-name">{{ slotProps.option.name }}</span>
-            <small class="board-option-owner">{{ slotProps.option.owner }}</small>
+          <div class="flex flex-col gap-0">
+            <span class="text-[20px] font-medium text-brand-500">{{ slotProps.option.name }}</span>
+            <small class="text-xs text-[#888888]">{{ slotProps.option.owner }}</small>
           </div>
         </template>
 
         <template #footer>
-          <div style="padding: 0px 8px 4px 8px">
-            <Button variant="text" class="add-board-btn">
+          <div class="px-2 pb-1">
+            <Button variant="text" class="flex w-full items-center gap-[5px]">
               <PhPlusCircle :size="16" />
               Добавить доску
             </Button>
@@ -31,7 +33,7 @@
       </Select>
     </nav>
 
-    <div class="action-btns">
+    <div class="flex w-[190px] justify-end">
       <Button variant="text" @click="isDrawerOpen = true">
         <PhList :size="32" weight="bold" />
       </Button>
@@ -56,70 +58,3 @@ const boards = ref([
   { name: 'Доска 2', owner: 'Пользователь 2' },
 ])
 </script>
-
-<style scoped>
-.app-header {
-  padding-left: 120px;
-  padding-right: 120px;
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.logo-container {
-  margin: 8px;
-  display: flex;
-  align-items: center;
-}
-
-.logo {
-  height: 60px;
-  width: auto;
-}
-
-.boards-links {
-  height: 100%;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  flex-grow: 1;
-}
-
-.action-btns {
-  /* Ширина .logo-container */
-  width: 190px;
-
-  display: flex;
-  justify-content: flex-end;
-}
-
-.board-option {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.board-option-name {
-  font-size: 20px;
-  font-weight: 500;
-  color: #025ea1;
-}
-
-.board-option-owner {
-  font-size: 12px;
-  color: #888888;
-}
-
-.add-board-btn {
-  width: 100%;
-
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-</style>

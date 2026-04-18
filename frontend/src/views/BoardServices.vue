@@ -1,5 +1,7 @@
 <template>
-  <div class="board">
+  <div
+    class="box-border flex flex-wrap justify-center items-center content-center gap-4 overflow-y-auto p-4"
+  >
     <CardService
       link="https://ya.ru/"
       image-src="https://img.icons8.com/external-others-inmotus-design/1200/external-Yandex-browser-others-inmotus-design-2.jpg"
@@ -16,34 +18,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import CardService from '@/components/CardService.vue'
 import { useBoardsStore } from '@/stores/boards'
 
 const boardsStore = useBoardsStore()
 const BOARD_ID = 3
 
-const boardName = computed(() => boardsStore.boardsById[BOARD_ID]?.name || 'Services')
-
 onMounted(async () => {
   await boardsStore.fetchBoard(BOARD_ID)
 })
 </script>
-
-<style scoped>
-.board {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 16px;
-
-  overflow-y: auto; /* vertical scroll when too tall */
-  padding: 16px;
-  box-sizing: border-box;
-}
-
-.board-title {
-  width: 100%;
-  margin: 0;
-}
-</style>

@@ -5,14 +5,8 @@ import AppHeader from './components/layout/AppHeader.vue'
 
 <template>
   <AppHeader />
-  <main class="main-content">
+  <main class="flex flex-1 align-center justify-center min-h-0 w-full px-[120px] py-10">
     <RouterView />
   </main>
   <AppFooter />
 </template>
-
-<style scoped>
-.main-content {
-  padding: 40px 120px;
-}
-</style>

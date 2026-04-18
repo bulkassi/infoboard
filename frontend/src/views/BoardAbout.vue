@@ -15,7 +15,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="board">
+  <div class="flex justify-center p-4">
     <CardNormal
       image-src="https://img.freepik.com/premium-photo/stunning-mountain-landscape_1048944-30333271.jpg"
       :title="boardName"
@@ -23,11 +23,3 @@ onMounted(async () => {
     />
   </div>
 </template>
-
-<style scoped>
-.board {
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-}
-</style>
