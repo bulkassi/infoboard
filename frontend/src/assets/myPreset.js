@@ -8,6 +8,12 @@ export const MyPreset = definePreset(Aura, {
     primary: palette(BRAND_PRIMARY),
   },
   components: {
+    button: {
+      root: {
+        paddingX: '12px',
+        paddingY: '4px',
+      },
+    },
     card: {
       border: {
         radius: '4px',
@@ -21,6 +27,14 @@ export const MyPreset = definePreset(Aura, {
           weight: 'bold',
           color: '{primary}',
         },
+      },
+    },
+    colorPicker: {
+      panel: {
+        borderColor: BRAND_PRIMARY,
+      },
+      handle: {
+        color: BRAND_PRIMARY,
       },
     },
     select: {

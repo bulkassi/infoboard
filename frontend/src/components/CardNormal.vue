@@ -4,6 +4,7 @@
       root: 'p-1',
       title: 'text-brand-500',
     }"
+    class="overflow-hidden"
   >
     <template #header>
       <Image
@@ -17,12 +18,16 @@
     </template>
     <template #title>{{ title }}</template>
     <template #content>{{ content }}</template>
+    <template #footer>
+      <InfoTag text="Важная информация" textColor="ffffff" bgColor="025EA1" />
+    </template>
   </Card>
 </template>
 
 <script setup>
 import Card from 'primevue/card'
 import Image from 'primevue/image'
+import InfoTag from './tags/InfoTag.vue'
 
-defineProps(['imageSrc', 'title', 'content'])
+const props = defineProps(['imageSrc', 'title', 'content'])
 </script>

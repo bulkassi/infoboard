@@ -1,6 +1,6 @@
 <template>
   <header
-    class="flex items-center justify-between bg-white px-[120px] shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
+    class="flex items-center justify-between bg-white px-[120px] py-2 shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
   >
     <div class="m-2 flex items-center">
       <img src="/src/assets/Greenatom_horizont_rus_blue.png" alt="Logo" class="h-[60px] w-auto" />
@@ -34,13 +34,14 @@
     </nav>
 
     <div class="flex w-[190px] justify-end">
-      <Button variant="text" @click="isDrawerOpen = true">
+      <Button variant="text" @click="drawerVisible = true">
         <PhList :size="32" weight="bold" />
       </Button>
     </div>
   </header>
 
-  <AppDrawer v-model:visible="isDrawerOpen" />
+  <AppDrawer v-model:visible="drawerVisible" @open-tag-manage="tagManageDialogVisible = true" />
+  <TagManageDialog v-model:visible="tagManageDialogVisible" />
 </template>
 
 <script setup>
@@ -50,8 +51,10 @@ import { PhChalkboardSimple, PhList, PhPlusCircle } from '@phosphor-icons/vue'
 import { Button, Select } from 'primevue'
 
 import AppDrawer from './AppDrawer.vue'
+import TagManageDialog from '../tags/TagManageDialog.vue'
 
-const isDrawerOpen = ref(false)
+const drawerVisible = ref(false)
+const tagManageDialogVisible = ref(false)
 
 const boards = ref([
   { name: 'Доска 1', owner: 'Пользователь 1' },
