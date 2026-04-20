@@ -33,7 +33,13 @@
         <PhBookmark :size="32" weight="duotone" />
         Управление тегами
       </Button>
-      <Button variant="outlined" class="w-full flex-1 justify-start whitespace-normal text-left">
+      <Button
+        as="RouterLink"
+        to="/admin"
+        @click="closeDrawer"
+        variant="outlined"
+        class="w-full flex-1 justify-start whitespace-normal text-left"
+      >
         <PhAddressBookTabs :size="32" weight="duotone" />
         Администрирование
       </Button>

@@ -3,6 +3,7 @@ import BoardMain from '@/views/BoardMain.vue'
 import BoardEmployees from '@/views/BoardEmployees.vue'
 import BoardServices from '@/views/BoardServices.vue'
 import BoardAbout from '@/views/BoardAbout.vue'
+import AdminPage from '@/views/AdminPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,11 @@ const router = createRouter({
       path: '/services',
       name: 'board-services',
       component: BoardServices,
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminPage,
     },
   ],
 })
