@@ -7,7 +7,7 @@
     </div>
     <nav class="flex h-full flex-1 items-center justify-center gap-2.5">
       <Button as="RouterLink" variant="text" to="/main">Главная</Button>
-      <Button as="RouterLink" variant="text" to="/">О нас</Button>
+      <Button as="RouterLink" variant="text" to="/about">О нас</Button>
       <Button as="RouterLink" variant="text" to="/employees">Сотрудники</Button>
       <Button as="RouterLink" variant="text" to="/services">Сервисы</Button>
       <Select placeholder="Выбрать доску" :options="boards" optionLabel="name" filter>
@@ -40,8 +40,17 @@
     </div>
   </header>
 
-  <AppDrawer v-model:visible="drawerVisible" @open-tag-manage="tagManageDialogVisible = true" />
+  <AppDrawer
+    v-model:visible="drawerVisible"
+    @open-tag-manage="tagManageDialogVisible = true"
+    @open-about-edit="aboutEditDialogVisible = true"
+  />
   <TagManageDialog v-model:visible="tagManageDialogVisible" />
+  <AboutEditDialog
+    v-model:visible="aboutEditDialogVisible"
+    :content="aboutContent"
+    @save="onAboutSave"
+  />
 </template>
 
 <script setup>
@@ -51,13 +60,22 @@ import { PhChalkboardSimple, PhList, PhPlusCircle } from '@phosphor-icons/vue'
 import { Button, Select } from 'primevue'
 
 import AppDrawer from './AppDrawer.vue'
+import AboutEditDialog from '../about/AboutEditDialog.vue'
 import TagManageDialog from '../tags/TagManageDialog.vue'
+import { useAboutBoardState } from '@/state/aboutBoard'
 
 const drawerVisible = ref(false)
 const tagManageDialogVisible = ref(false)
+const aboutEditDialogVisible = ref(false)
+
+const { aboutContent } = useAboutBoardState()
 
 const boards = ref([
   { name: 'Доска 1', owner: 'Пользователь 1' },
   { name: 'Доска 2', owner: 'Пользователь 2' },
 ])
+
+const onAboutSave = (nextContent) => {
+  aboutContent.value = nextContent
+}
 </script>

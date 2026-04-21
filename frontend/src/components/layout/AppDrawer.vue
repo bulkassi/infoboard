@@ -9,9 +9,13 @@
         <PhSlideshow :size="32" weight="duotone" />
         Слайд-шоу
       </Button>
-      <Button variant="outlined" class="w-full flex-1 justify-start whitespace-normal text-left">
+      <Button
+        @click="openAboutEditDialog"
+        variant="outlined"
+        class="w-full flex-1 justify-start whitespace-normal text-left"
+      >
         <PhPencilSimple :size="32" weight="duotone" />
-        Слайд-шоу
+        Редактировать About
       </Button>
       <Button variant="outlined" class="w-full flex-1 justify-start whitespace-normal text-left">
         <PhShareFat :size="32" weight="duotone" />
@@ -74,7 +78,7 @@ import {
 } from '@phosphor-icons/vue'
 
 const visible = defineModel('visible')
-const emit = defineEmits(['open-tag-manage'])
+const emit = defineEmits(['open-tag-manage', 'open-about-edit'])
 
 const closeDrawer = () => {
   visible.value = false
@@ -83,5 +87,10 @@ const closeDrawer = () => {
 const openTagManageDialog = () => {
   closeDrawer()
   emit('open-tag-manage')
+}
+
+const openAboutEditDialog = () => {
+  closeDrawer()
+  emit('open-about-edit')
 }
 </script>

@@ -1,5 +1,6 @@
 import './assets/tailwind.css'
 import './assets/base.css'
+import 'quill/dist/quill.snow.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
