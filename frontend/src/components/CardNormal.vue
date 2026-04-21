@@ -1,10 +1,12 @@
 <template>
   <Card
     :pt="{
-      root: 'p-1',
+      root: 'p-1 h-full flex flex-col min-h-0',
+      body: 'flex flex-col flex-1 min-h-0',
+      content: 'flex-1 min-h-0 overflow-auto',
       title: 'text-brand-500',
     }"
-    class="overflow-hidden"
+    class="card-normal h-full w-full overflow-hidden"
   >
     <template #header>
       <Image
@@ -29,5 +31,11 @@ import Card from 'primevue/card'
 import Image from 'primevue/image'
 import InfoTag from './tags/InfoTag.vue'
 
-const props = defineProps(['imageSrc', 'title', 'content'])
+defineProps(['imageSrc', 'title', 'content'])
 </script>
+
+<style scoped>
+.card-normal {
+  min-height: 0;
+}
+</style>
