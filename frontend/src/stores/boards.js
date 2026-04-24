@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 const API_BASE = import.meta.env.VITE_API_URL
-const LAYOUT_STORAGE_KEY = 'infoboard-board-layout-v1'
 const DEFAULT_GRID_SETTINGS = {
   columns: 12,
   rows: 8,
@@ -70,30 +69,9 @@ export const useBoardsStore = defineStore('boards', () => {
   const draftGridSettingsById = ref({})
   const isLayoutEditMode = ref(false)
 
-  function saveLayoutStateToStorage() {
-    localStorage.setItem(
-      LAYOUT_STORAGE_KEY,
-      JSON.stringify({
-        boardLayoutsById: boardLayoutsById.value,
-        boardGridSettingsById: boardGridSettingsById.value,
-      }),
-    )
-  }
-
-  function loadLayoutStateFromStorage() {
-    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    if (!raw) {
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(raw)
-      boardLayoutsById.value = parsed.boardLayoutsById ?? {}
-      boardGridSettingsById.value = parsed.boardGridSettingsById ?? {}
-    } catch {
-      boardLayoutsById.value = {}
-      boardGridSettingsById.value = {}
-    }
+  function resetDraftState() {
+    draftLayoutsById.value = {}
+    draftGridSettingsById.value = {}
   }
 
   function getGridSettings(boardId) {
@@ -119,10 +97,26 @@ export const useBoardsStore = defineStore('boards', () => {
   function initializeBoardLayout(boardId, initialLayouts = {}) {
     if (!boardLayoutsById.value[boardId]) {
       boardLayoutsById.value[boardId] = cloneValue(initialLayouts)
-      saveLayoutStateToStorage()
     }
 
     getGridSettings(boardId)
+  }
+
+  function removeBoardLayoutState(boardId) {
+    const nextLayouts = { ...boardLayoutsById.value }
+    const nextGridSettings = { ...boardGridSettingsById.value }
+    const nextDraftLayouts = { ...draftLayoutsById.value }
+    const nextDraftGridSettings = { ...draftGridSettingsById.value }
+
+    delete nextLayouts[boardId]
+    delete nextGridSettings[boardId]
+    delete nextDraftLayouts[boardId]
+    delete nextDraftGridSettings[boardId]
+
+    boardLayoutsById.value = nextLayouts
+    boardGridSettingsById.value = nextGridSettings
+    draftLayoutsById.value = nextDraftLayouts
+    draftGridSettingsById.value = nextDraftGridSettings
   }
 
   function getActiveBoardLayouts(boardId) {
@@ -162,8 +156,7 @@ export const useBoardsStore = defineStore('boards', () => {
 
   function cancelLayoutEdit() {
     isLayoutEditMode.value = false
-    draftLayoutsById.value = {}
-    draftGridSettingsById.value = {}
+    resetDraftState()
   }
 
   function saveLayoutEdit(boardId) {
@@ -174,9 +167,7 @@ export const useBoardsStore = defineStore('boards', () => {
     boardLayoutsById.value[boardId] = cloneValue(draftLayoutsById.value[boardId] ?? {})
     boardGridSettingsById.value[boardId] = cloneValue(getDraftGridSettings(boardId))
     isLayoutEditMode.value = false
-    draftLayoutsById.value = {}
-    draftGridSettingsById.value = {}
-    saveLayoutStateToStorage()
+    resetDraftState()
   }
 
   function setDraftRowCount(boardId, rowCount) {
@@ -271,8 +262,6 @@ export const useBoardsStore = defineStore('boards', () => {
     }
   }
 
-  loadLayoutStateFromStorage()
-
   return {
     boardsById,
     loadingById,
@@ -282,6 +271,7 @@ export const useBoardsStore = defineStore('boards', () => {
     isLayoutEditMode,
     fetchBoard,
     initializeBoardLayout,
+    removeBoardLayoutState,
     getActiveBoardLayouts,
     getActiveGridSettings,
     beginLayoutEdit,

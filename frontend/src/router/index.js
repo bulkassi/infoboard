@@ -3,6 +3,7 @@ import BoardMain from '@/views/BoardMain.vue'
 import BoardEmployees from '@/views/BoardEmployees.vue'
 import BoardServices from '@/views/BoardServices.vue'
 import BoardAbout from '@/views/BoardAbout.vue'
+import BoardUser from '@/views/BoardUser.vue'
 import AdminPage from '@/views/AdminPage.vue'
 
 const router = createRouter({
@@ -33,6 +34,11 @@ const router = createRouter({
       path: '/services',
       name: 'board-services',
       component: BoardServices,
+    },
+    {
+      path: '/board/:boardId(\\d+)',
+      name: 'board-user',
+      component: BoardUser,
     },
     {
       path: '/admin',

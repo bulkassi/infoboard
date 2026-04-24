@@ -2,32 +2,59 @@
   <div
     class="box-border flex flex-wrap justify-center items-center content-center gap-4 overflow-y-auto p-4"
   >
-    <CardEmployee
-      image-src="https://yt3.googleusercontent.com/zqWZEp5yBw-Ap3B5ljLA5y66MnJTWAMuGH0T-8usRA0jUA-Y4il0jcqrSHGOa0XX8zYeHr0yF_w=s900-c-k-c0x00ffffff-no-rj"
-      surname="Walter"
-      name="White"
-      patronymic="Sergeevich"
-      position="Project Manager"
-    />
-    <CardEmployee
-      image-src="https://i.pinimg.com/736x/e0/17/a5/e017a591f196802929bea1e013a083d6.jpg"
-      surname="Pinkman"
-      name="Jesse"
-      patronymic="Antonovich"
-      position="Software Tester"
-    />
+    <div
+      v-for="card in cards"
+      :key="card.id"
+      class="rounded-md"
+      :class="{ 'card-selectable': isCardSelectionMode }"
+      @click="onCardClick(card.id)"
+    >
+      <CardEmployee
+        :image-src="card.imageSrc"
+        :surname="card.surname"
+        :name="card.name"
+        :patronymic="card.patronymic"
+        :position="card.position"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed } from 'vue'
 import CardEmployee from '@/components/CardEmployee.vue'
-import { useBoardsStore } from '@/stores/boards'
+import {
+  EMPLOYEES_BOARD_KEY,
+  getCards,
+  pendingCardSelection,
+  pickCardOnBoard,
+} from '@/state/boardCards'
 
-const boardsStore = useBoardsStore()
-const BOARD_ID = 2
-
-onMounted(async () => {
-  await boardsStore.fetchBoard(BOARD_ID)
+const BOARD_ID = EMPLOYEES_BOARD_KEY
+const cards = computed(() => getCards(BOARD_ID))
+const isCardSelectionMode = computed(() => {
+  return (
+    pendingCardSelection.value.action !== null && pendingCardSelection.value.boardId === BOARD_ID
+  )
 })
+
+const onCardClick = (cardId) => {
+  if (!isCardSelectionMode.value) {
+    return
+  }
+
+  pickCardOnBoard(BOARD_ID, cardId)
+}
 </script>
+
+<style scoped>
+.card-selectable {
+  cursor: pointer;
+  outline: 2px solid rgba(2, 94, 161, 0.45);
+  border-radius: 0.5rem;
+}
+
+.card-selectable:hover {
+  outline-color: rgba(2, 94, 161, 0.8);
+}
+</style>
