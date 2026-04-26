@@ -84,18 +84,14 @@ import { PhBookmark, PhPencilSimple, PhPlus, PhTrash } from '@phosphor-icons/vue
 
 import InfoTag from './InfoTag.vue'
 import TagEditDialog from './TagEditDialog.vue'
+import { removeTagFromMainStyleCards } from '@/state/boardCards'
+import { getNextTagId, reserveTagId, tags } from '@/state/tags'
 
 const visible = defineModel('visible')
 const tagEditDialogVisible = ref(false)
 const returnToManageAfterEdit = ref(false)
 const selectedTagId = ref(null)
 const editingTag = ref(null)
-
-const tags = ref([
-  { id: 0, name: 'Важная информация', textColor: 'ffffff', bgColor: 'ef4444', isGlobal: false },
-  { id: 1, name: 'Срочно', textColor: 'ffffff', bgColor: 'f59e0b', isGlobal: false },
-  { id: 2, name: 'На рассмотрении', textColor: 'ffffff', bgColor: '3b82f6', isGlobal: false },
-])
 
 const getNewTagTemplate = () => ({
   id: null,
@@ -123,6 +119,7 @@ const tagEdit = (tag) => {
 
 const tagDelete = (tag) => {
   tags.value = tags.value.filter((item) => item.id !== tag.id)
+  removeTagFromMainStyleCards(tag.id)
   if (selectedTagId.value === tag.id) {
     selectedTagId.value = null
   }
@@ -138,10 +135,10 @@ const onTagSave = (payload) => {
   }
 
   if (normalizedTag.id === null || normalizedTag.id === undefined) {
-    const maxId = tags.value.length > 0 ? Math.max(...tags.value.map((tag) => tag.id)) : -1
-    normalizedTag.id = maxId + 1
+    normalizedTag.id = getNextTagId()
     tags.value.push(normalizedTag)
   } else {
+    reserveTagId(normalizedTag.id)
     const index = tags.value.findIndex((tag) => tag.id === normalizedTag.id)
     if (index !== -1) {
       tags.value[index] = normalizedTag

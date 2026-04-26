@@ -23,7 +23,12 @@
         @dragend="onCardDragEnd"
         @click="onCardClick(card.id)"
       >
-        <CardNormal :image-src="card.imageSrc" :title="card.title" :content="card.content" />
+        <CardNormal
+          :image-src="card.imageSrc"
+          :title="card.title"
+          :content="card.content"
+          :tags="resolveCardTags(card)"
+        />
 
         <button
           v-if="canEdit"
@@ -54,6 +59,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardNormal from '@/components/CardNormal.vue'
 import { useBoardsStore } from '@/stores/boards'
+import { tags } from '@/state/tags'
 import {
   MAIN_BOARD_KEY,
   getBoardRoute,
@@ -81,6 +87,17 @@ const transientLayouts = ref({})
 const boardId = computed(() => getBoardIdFromRoute(route))
 
 const cards = computed(() => getCards(boardId.value))
+const tagById = computed(() => {
+  return new Map(tags.value.map((tag) => [tag.id, tag]))
+})
+
+const resolveCardTags = (card) => {
+  if (!Array.isArray(card.tagIds) || card.tagIds.length === 0) {
+    return []
+  }
+
+  return card.tagIds.map((tagId) => tagById.value.get(tagId)).filter(Boolean)
+}
 
 const canEdit = computed(() => boardsStore.isLayoutEditMode && isDesktop.value)
 const isCardSelectionMode = computed(() => {

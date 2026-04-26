@@ -21,7 +21,15 @@
     <template #title>{{ title }}</template>
     <template #content>{{ content }}</template>
     <template #footer>
-      <InfoTag text="Важная информация" textColor="ffffff" bgColor="025EA1" />
+      <div v-if="Array.isArray(tags) && tags.length > 0" class="flex flex-wrap gap-1">
+        <InfoTag
+          v-for="tag in tags"
+          :key="tag.id"
+          :text="tag.name"
+          :textColor="tag.textColor"
+          :bgColor="tag.bgColor"
+        />
+      </div>
     </template>
   </Card>
 </template>
@@ -31,7 +39,7 @@ import Card from 'primevue/card'
 import Image from 'primevue/image'
 import InfoTag from './tags/InfoTag.vue'
 
-defineProps(['imageSrc', 'title', 'content'])
+defineProps(['imageSrc', 'title', 'content', 'tags'])
 </script>
 
 <style scoped>

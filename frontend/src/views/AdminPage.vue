@@ -67,13 +67,46 @@ import UserEditDialog from '@/components/admin/UserEditDialog.vue'
 const userEditDialogVisible = ref(false)
 const editingUser = ref(null)
 
+const defaultUsers = [
+  { name: 'Анна Волкова', isAdmin: true },
+  { name: 'Дмитрий Соколов', isAdmin: false },
+  { name: 'Екатерина Морозова', isAdmin: false },
+  { name: 'Алексей Федоров', isAdmin: false },
+  { name: 'Марина Кузнецова', isAdmin: true },
+  { name: 'Илья Орлов', isAdmin: false },
+  { name: 'Ольга Павлова', isAdmin: false },
+  { name: 'Никита Воронов', isAdmin: false },
+  { name: 'Татьяна Белова', isAdmin: false },
+  { name: 'Павел Зайцев', isAdmin: false },
+  { name: 'Светлана Новикова', isAdmin: true },
+  { name: 'Роман Громов', isAdmin: false },
+  { name: 'Юлия Титова', isAdmin: false },
+  { name: 'Андрей Лебедев', isAdmin: false },
+  { name: 'Виктория Смирнова', isAdmin: false },
+  { name: 'Кирилл Николаев', isAdmin: false },
+  { name: 'Наталья Сидорова', isAdmin: true },
+  { name: 'Константин Мельников', isAdmin: false },
+  { name: 'Елена Васильева', isAdmin: false },
+  { name: 'Михаил Ковалев', isAdmin: false },
+  { name: 'Алина Романова', isAdmin: false },
+  { name: 'Владислав Емельянов', isAdmin: false },
+  { name: 'Дарья Андреева', isAdmin: false },
+  { name: 'Сергей Павлов', isAdmin: false },
+  { name: 'Полина Захарова', isAdmin: true },
+  { name: 'Вадим Александров', isAdmin: false },
+  { name: 'Ксения Фролова', isAdmin: false },
+  { name: 'Олег Комаров', isAdmin: false },
+  { name: 'Евгения Калинина', isAdmin: false },
+  { name: 'Глеб Киселев', isAdmin: false },
+]
+
 const users = ref(
-  Array.from(Array(30).keys()).map((i) => ({
-    id: i,
-    name: `Пользователь ${i + 1}`,
+  defaultUsers.map((user, index) => ({
+    id: index,
+    name: user.name,
     password: '',
-    avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
-    isAdmin: Math.random() < 0.3,
+    avatar: `https://i.pravatar.cc/150?img=${index + 1}`,
+    isAdmin: user.isAdmin,
   })),
 )
 

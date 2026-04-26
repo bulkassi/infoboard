@@ -23,7 +23,12 @@
         @dragend="onCardDragEnd"
         @click="onCardClick(card.id)"
       >
-        <CardNormal :image-src="card.imageSrc" :title="card.title" :content="card.content" />
+        <CardNormal
+          :image-src="card.imageSrc"
+          :title="card.title"
+          :content="card.content"
+          :tags="resolveCardTags(card)"
+        />
 
         <button
           v-if="canEdit"
@@ -54,6 +59,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import CardNormal from '@/components/CardNormal.vue'
 import { useBoardsStore } from '@/stores/boards'
 import { MAIN_BOARD_KEY, getCards, pendingCardSelection, pickCardOnBoard } from '@/state/boardCards'
+import { tags } from '@/state/tags'
 
 const boardsStore = useBoardsStore()
 const BOARD_ID = MAIN_BOARD_KEY
@@ -68,6 +74,17 @@ const isDesktop = ref(false)
 const transientLayouts = ref({})
 
 const cards = computed(() => getCards(BOARD_ID))
+const tagById = computed(() => {
+  return new Map(tags.value.map((tag) => [tag.id, tag]))
+})
+
+const resolveCardTags = (card) => {
+  if (!Array.isArray(card.tagIds) || card.tagIds.length === 0) {
+    return []
+  }
+
+  return card.tagIds.map((tagId) => tagById.value.get(tagId)).filter(Boolean)
+}
 
 const defaultLayouts = {
   'card-1': { col: 1, row: 1, colSpan: 4, rowSpan: 4 },

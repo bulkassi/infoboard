@@ -59,7 +59,7 @@ const userBoards = ref([])
 
 const DEFAULT_IMAGE_BY_BOARD = {
   [MAIN_BOARD_KEY]:
-    'https://i.pinimg.com/originals/19/fc/fb/19fcfbb5debcb7d95a5f73a556a54b39.webp?nii=t',
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
   [EMPLOYEES_BOARD_KEY]:
     'https://yt3.googleusercontent.com/zqWZEp5yBw-Ap3B5ljLA5y66MnJTWAMuGH0T-8usRA0jUA-Y4il0jcqrSHGOa0XX8zYeHr0yF_w=s900-c-k-c0x00ffffff-no-rj',
   [SERVICES_BOARD_KEY]:
@@ -114,42 +114,41 @@ const cardsByBoardId = ref({
     {
       id: 'card-1',
       imageSrc:
-        'https://i.pinimg.com/originals/19/fc/fb/19fcfbb5debcb7d95a5f73a556a54b39.webp?nii=t',
-      title: 'Карточка 1',
-      content: 'Горы горы горы горы горы горы',
+        'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+      title: 'План на неделю',
+      content: 'Проверить задачи, обновить статус по заявкам и согласовать приоритеты на ближайшие дни.',
     },
     {
       id: 'card-2',
       imageSrc:
-        'https://img.freepik.com/premium-photo/stunning-4k-hd-wallpaper-majestic-mountain_1193781-9607.jpg?semt=ais_hybrid',
-      title: 'Карточка 2',
-      content: 'Еще горы',
+        'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80',
+      title: 'Важное объявление',
+      content: 'Сегодня до 16:00 нужно подтвердить участие в встрече с подрядчиками и отправить вопросы.',
     },
     {
       id: 'card-3',
       imageSrc:
-        'https://img.freepik.com/premium-photo/majestic-mountain-range-sunset-with-fiery-sky_63085-5917.jpg?semt=ais_hybrid&w=740',
-      title: 'Карточка 3',
-      content: 'А вот еще горы',
+        'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+      title: 'Результаты месяца',
+      content: 'В этом месяце закрыли ключевые задачи по поддержке и ускорили обработку обращений клиентов.',
     },
   ],
   [EMPLOYEES_BOARD_KEY]: [
     {
       id: 'employee-1',
-      imageSrc:
-        'https://yt3.googleusercontent.com/zqWZEp5yBw-Ap3B5ljLA5y66MnJTWAMuGH0T-8usRA0jUA-Y4il0jcqrSHGOa0XX8zYeHr0yF_w=s900-c-k-c0x00ffffff-no-rj',
-      surname: 'Walter',
-      name: 'White',
-      patronymic: 'Sergeevich',
-      position: 'Project Manager',
+      imageSrc: 'https://randomuser.me/api/portraits/men/32.jpg',
+      surname: 'Иванов',
+      name: 'Алексей',
+      patronymic: 'Сергеевич',
+      position: 'Руководитель проекта',
     },
     {
       id: 'employee-2',
-      imageSrc: 'https://i.pinimg.com/736x/e0/17/a5/e017a591f196802929bea1e013a083d6.jpg',
-      surname: 'Pinkman',
-      name: 'Jesse',
-      patronymic: 'Antonovich',
-      position: 'Software Tester',
+      imageSrc: 'https://randomuser.me/api/portraits/women/44.jpg',
+      surname: 'Петрова',
+      name: 'Мария',
+      patronymic: 'Андреевна',
+      position: 'Тестировщик ПО',
     },
   ],
   [SERVICES_BOARD_KEY]: [
@@ -323,6 +322,9 @@ function createImageSrc(boardId, payload, previousCard = null) {
 
 function normalizeCardPayload(boardId, payload, previousCard = null) {
   const imageSrc = createImageSrc(boardId, payload, previousCard)
+  const fallbackTagIds = Array.isArray(previousCard?.tagIds) ? previousCard.tagIds : []
+  const sourceTagIds = Array.isArray(payload.tagIds) ? payload.tagIds : fallbackTagIds
+  const tagIds = [...new Set(sourceTagIds.filter((tagId) => Number.isInteger(tagId)))]
 
   if (isMainStyleBoard(boardId)) {
     return {
@@ -330,6 +332,7 @@ function normalizeCardPayload(boardId, payload, previousCard = null) {
       imageSrc,
       title: payload.title?.trim() ?? '',
       content: payload.content?.trim() ?? '',
+      tagIds,
     }
   }
 
@@ -433,6 +436,39 @@ export function deleteCard(boardId, cardId) {
   }
 
   return true
+}
+
+export function removeTagFromMainStyleCards(tagId) {
+  if (!Number.isInteger(tagId)) {
+    return
+  }
+
+  let changed = false
+  const nextCardsByBoardId = { ...cardsByBoardId.value }
+
+  Object.entries(cardsByBoardId.value).forEach(([boardId, cards]) => {
+    if (!isMainStyleBoard(boardId)) {
+      return
+    }
+
+    const nextCards = cards.map((card) => {
+      if (!Array.isArray(card.tagIds) || !card.tagIds.includes(tagId)) {
+        return card
+      }
+
+      changed = true
+      return {
+        ...card,
+        tagIds: card.tagIds.filter((id) => id !== tagId),
+      }
+    })
+
+    nextCardsByBoardId[boardId] = nextCards
+  })
+
+  if (changed) {
+    cardsByBoardId.value = nextCardsByBoardId
+  }
 }
 
 export function startCardSelection(action, boardId) {

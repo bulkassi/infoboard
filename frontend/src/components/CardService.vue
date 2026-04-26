@@ -11,7 +11,9 @@
       unstyled
     >
       <template #header>
-        <Avatar :image="imageSrc" shape="circle" class="h-full w-full" />
+        <div class="h-full w-full overflow-hidden rounded-[10%]">
+          <img :src="imageSrc" alt="Логотип сервиса" class="block h-full w-full object-cover" />
+        </div>
       </template>
       <template #title>{{ serviceName }}</template>
       <template #content>{{ serviceDesc }}</template>
@@ -22,7 +24,6 @@
 <script setup>
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Avatar from 'primevue/avatar'
 
 defineProps(['link', 'imageSrc', 'serviceName', 'serviceDesc'])
 </script>

@@ -38,6 +38,42 @@
             placeholder="Описание"
             class="w-full"
           />
+
+          <Fieldset pt:root:class="flex flex-col gap-2">
+            <template #legend>
+              <span class="text-brand-500 text-md font-medium">Теги карточки</span>
+            </template>
+
+            <Listbox
+              v-model="formState.tagIds"
+              :options="tags"
+              optionLabel="name"
+              optionValue="id"
+              multiple
+              checkmark
+              class="w-full"
+              :pt="{
+                option: { class: 'w-full !justify-end' },
+              }"
+            >
+              <template #option="slotProps">
+                <div class="flex w-full items-center justify-end gap-2">
+                  <span class="inline-flex w-4 justify-center">
+                    <i
+                      v-if="formState.tagIds.includes(slotProps.option.id)"
+                      class="pi pi-check text-brand-500"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <InfoTag
+                    :text="slotProps.option.name"
+                    :textColor="slotProps.option.textColor"
+                    :bgColor="slotProps.option.bgColor"
+                  />
+                </div>
+              </template>
+            </Listbox>
+          </Fieldset>
         </div>
 
         <div v-else-if="isEmployeesBoard" class="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -118,10 +154,12 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, Dialog, Fieldset, InputText, Message, Textarea } from 'primevue'
+import { Button, Dialog, Fieldset, InputText, Listbox, Message, Textarea } from 'primevue'
 import { PhCards } from '@phosphor-icons/vue'
 import FileUploader from '@/components/FileUploader.vue'
+import InfoTag from '@/components/tags/InfoTag.vue'
 import { EMPLOYEES_BOARD_KEY, SERVICES_BOARD_KEY, isMainStyleCardBoard } from '@/state/boardCards'
+import { tags } from '@/state/tags'
 
 const visible = defineModel('visible')
 
@@ -152,6 +190,7 @@ const getDefaultFormState = () => ({
   link: '',
   serviceName: '',
   serviceDesc: '',
+  tagIds: [],
   imageFile: null,
 })
 
@@ -164,6 +203,18 @@ const isServicesBoard = computed(() => props.boardId === SERVICES_BOARD_KEY)
 const dialogTitle = computed(() =>
   formState.value.id === null ? 'Создание карточки' : 'Редактирование карточки',
 )
+
+const normalizeTagIds = (tagIds) => {
+  if (!Array.isArray(tagIds)) {
+    return []
+  }
+
+  const availableTagIds = new Set(tags.value.map((tag) => tag.id))
+
+  return [
+    ...new Set(tagIds.filter((tagId) => Number.isInteger(tagId) && availableTagIds.has(tagId))),
+  ]
+}
 
 const applyCardToForm = (card) => {
   if (!card) {
@@ -182,6 +233,7 @@ const applyCardToForm = (card) => {
     link: card.link ?? '',
     serviceName: card.serviceName ?? '',
     serviceDesc: card.serviceDesc ?? '',
+    tagIds: normalizeTagIds(card.tagIds),
     imageFile: null,
   }
 }
@@ -253,6 +305,7 @@ const onSubmit = () => {
     link: formState.value.link,
     serviceName: formState.value.serviceName,
     serviceDesc: formState.value.serviceDesc,
+    tagIds: normalizeTagIds(formState.value.tagIds),
     imageFile: formState.value.imageFile,
   })
 
@@ -274,4 +327,12 @@ watch(visible, (isVisible) => {
     applyCardToForm(props.card)
   }
 })
+
+watch(
+  tags,
+  () => {
+    formState.value.tagIds = normalizeTagIds(formState.value.tagIds)
+  },
+  { deep: true },
+)
 </script>
