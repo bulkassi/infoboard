@@ -5,6 +5,8 @@ import BoardServices from '@/views/BoardServices.vue'
 import BoardAbout from '@/views/BoardAbout.vue'
 import BoardUser from '@/views/BoardUser.vue'
 import AdminPage from '@/views/AdminPage.vue'
+import LoginPage from '@/views/LoginPage.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,16 +38,47 @@ const router = createRouter({
       component: BoardServices,
     },
     {
+      path: '/login',
+      name: 'login',
+      component: LoginPage,
+    },
+    {
       path: '/board/:boardId(\\d+)',
       name: 'board-user',
       component: BoardUser,
+      meta: {
+        requiresAuth: true,
+      },
     },
     {
       path: '/admin',
       name: 'admin',
       component: AdminPage,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+      },
     },
   ],
+})
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return {
+      path: '/login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return {
+      path: '/main',
+    }
+  }
+
+  return true
 })
 
 export default router

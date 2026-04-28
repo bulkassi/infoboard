@@ -46,7 +46,7 @@
 
             <Listbox
               v-model="formState.tagIds"
-              :options="tags"
+              :options="availableTags"
               optionLabel="name"
               optionValue="id"
               multiple
@@ -158,7 +158,13 @@ import { Button, Dialog, Fieldset, InputText, Listbox, Message, Textarea } from 
 import { PhCards } from '@phosphor-icons/vue'
 import FileUploader from '@/components/FileUploader.vue'
 import InfoTag from '@/components/tags/InfoTag.vue'
-import { EMPLOYEES_BOARD_KEY, SERVICES_BOARD_KEY, isMainStyleCardBoard } from '@/state/boardCards'
+import { usePermissions } from '@/composables/usePermissions'
+import {
+  EMPLOYEES_BOARD_KEY,
+  SERVICES_BOARD_KEY,
+  getBoardById,
+  isMainStyleCardBoard,
+} from '@/state/boardCards'
 import { tags } from '@/state/tags'
 
 const visible = defineModel('visible')
@@ -175,6 +181,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['save'])
+const { canAssignTagToCard } = usePermissions()
 
 const isSubmitAttempted = ref(false)
 const validationError = ref('')
@@ -199,6 +206,10 @@ const formState = ref(getDefaultFormState())
 const isMainBoard = computed(() => isMainStyleCardBoard(props.boardId))
 const isEmployeesBoard = computed(() => props.boardId === EMPLOYEES_BOARD_KEY)
 const isServicesBoard = computed(() => props.boardId === SERVICES_BOARD_KEY)
+const currentBoard = computed(() => getBoardById(props.boardId))
+const availableTags = computed(() => {
+  return tags.value.filter((tag) => canAssignTagToCard(tag, currentBoard.value))
+})
 
 const dialogTitle = computed(() =>
   formState.value.id === null ? 'Создание карточки' : 'Редактирование карточки',
@@ -210,9 +221,15 @@ const normalizeTagIds = (tagIds) => {
   }
 
   const availableTagIds = new Set(tags.value.map((tag) => tag.id))
+  const allowedTagIds = new Set(availableTags.value.map((tag) => tag.id))
 
   return [
-    ...new Set(tagIds.filter((tagId) => Number.isInteger(tagId) && availableTagIds.has(tagId))),
+    ...new Set(
+      tagIds.filter(
+        (tagId) =>
+          Number.isInteger(tagId) && availableTagIds.has(tagId) && allowedTagIds.has(tagId),
+      ),
+    ),
   ]
 }
 
@@ -328,11 +345,7 @@ watch(visible, (isVisible) => {
   }
 })
 
-watch(
-  tags,
-  () => {
-    formState.value.tagIds = normalizeTagIds(formState.value.tagIds)
-  },
-  { deep: true },
-)
+watch(availableTags, () => {
+  formState.value.tagIds = normalizeTagIds(formState.value.tagIds)
+})
 </script>

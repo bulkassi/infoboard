@@ -16,6 +16,7 @@
         <RouterLink :to="navItem.to" :class="slotProps.class">{{ navItem.label }}</RouterLink>
       </Button>
       <Select
+        v-if="authStore.isAuthenticated"
         placeholder="Выбрать доску"
         :options="boards"
         optionLabel="name"
@@ -40,6 +41,7 @@
             <Button
               variant="text"
               class="flex w-full items-center gap-[5px]"
+              :disabled="!canCreateBoard"
               @click="onCreateBoard"
             >
               <PhPlusCircle :size="16" />
@@ -95,11 +97,14 @@ import AboutEditDialog from '../about/AboutEditDialog.vue'
 import TagManageDialog from '../tags/TagManageDialog.vue'
 import CardEditDialog from '../cards/CardEditDialog.vue'
 import { useAboutBoardState } from '@/state/aboutBoard'
+import { useAuthStore } from '@/stores/auth'
+import { usePermissions } from '@/composables/usePermissions'
 import {
   clearCardSelection,
   createUserBoard,
   createCard,
   deleteCard,
+  getBoardById,
   getBoardDisplayName,
   getBoardIdFromRoute,
   getBoardRoute,
@@ -125,6 +130,8 @@ const { aboutContent } = useAboutBoardState()
 const route = useRoute()
 const router = useRouter()
 const confirm = useConfirm()
+const authStore = useAuthStore()
+const { canCreateBoard, canManageCards, canManageAbout } = usePermissions()
 
 const navLinks = [
   { to: '/main', label: 'Главная' },
@@ -136,8 +143,10 @@ const navLinks = [
 const boards = computed(() => getSelectableBoards())
 
 const currentBoardId = computed(() => getBoardIdFromRoute(route))
+const currentBoard = computed(() => getBoardById(currentBoardId.value))
 
 const isCardBoardRoute = computed(() => isCardBoard(currentBoardId.value))
+const canManageCurrentBoardCards = computed(() => canManageCards(currentBoard.value))
 
 const activeCard = computed(() => {
   if (!isCardBoardRoute.value || !selectedCardId.value) {
@@ -152,7 +161,14 @@ const getBoardName = () => {
 }
 
 const onCreateBoard = () => {
-  const board = createUserBoard()
+  if (!canCreateBoard.value) {
+    return
+  }
+
+  const board = createUserBoard({
+    owner: authStore.currentUser.name,
+    ownerUserId: authStore.currentUser.id,
+  })
   router.push(getBoardRoute(board.id))
 }
 
@@ -167,7 +183,7 @@ const onBoardSelect = (boardId) => {
 }
 
 const openCardCreateDialog = () => {
-  if (!isCardBoardRoute.value) {
+  if (!isCardBoardRoute.value || !canManageCurrentBoardCards.value) {
     return
   }
 
@@ -178,7 +194,7 @@ const openCardCreateDialog = () => {
 }
 
 const openCardEditPicker = () => {
-  if (!isCardBoardRoute.value) {
+  if (!isCardBoardRoute.value || !canManageCurrentBoardCards.value) {
     return
   }
 
@@ -186,7 +202,7 @@ const openCardEditPicker = () => {
 }
 
 const openCardDeletePicker = () => {
-  if (!isCardBoardRoute.value) {
+  if (!isCardBoardRoute.value || !canManageCurrentBoardCards.value) {
     return
   }
 
@@ -194,20 +210,29 @@ const openCardDeletePicker = () => {
 }
 
 const onCardSave = (payload) => {
-  if (!isCardBoardRoute.value) {
+  if (!isCardBoardRoute.value || !canManageCurrentBoardCards.value) {
     return
+  }
+
+  const actor = {
+    actorUserId: authStore.currentUser.id,
+    isAdmin: authStore.isAdmin,
   }
 
   if (cardEditMode.value === 'edit' && selectedCardId.value) {
-    updateCard(currentBoardId.value, selectedCardId.value, payload)
+    updateCard(currentBoardId.value, selectedCardId.value, payload, actor)
     return
   }
 
-  createCard(currentBoardId.value, payload)
+  createCard(currentBoardId.value, payload, actor)
 }
 
 watch(selectedCardActionEvent, (event) => {
   if (!event || event.boardId !== currentBoardId.value) {
+    return
+  }
+
+  if (!canManageCurrentBoardCards.value) {
     return
   }
 
@@ -234,7 +259,10 @@ watch(selectedCardActionEvent, (event) => {
       severity: 'danger',
     },
     accept: () => {
-      deleteCard(event.boardId, event.cardId)
+      deleteCard(event.boardId, event.cardId, {
+        actorUserId: authStore.currentUser.id,
+        isAdmin: authStore.isAdmin,
+      })
     },
   })
 })
@@ -255,6 +283,10 @@ watch(
 )
 
 const onAboutSave = (nextContent) => {
+  if (!canManageAbout.value) {
+    return
+  }
+
   aboutContent.value = nextContent
 }
 </script>

@@ -20,7 +20,7 @@
     <div class="flex flex-col gap-2">
       <Listbox
         v-model="selectedTagId"
-        :options="tags"
+        :options="visibleTags"
         optionLabel="name"
         :pt="{
           option: { class: 'w-full flex justify-between' },
@@ -37,12 +37,19 @@
             />
 
             <div class="flex gap-2">
-              <Button class="flex-none" @click.stop="tagEdit(slotProps.option)" raised rounded>
+              <Button
+                class="flex-none"
+                @click.stop="tagEdit(slotProps.option)"
+                :disabled="!canEditTag(slotProps.option)"
+                raised
+                rounded
+              >
                 <PhPencilSimple :size="16" />
               </Button>
               <Button
                 class="flex-none"
                 @click.stop="tagDelete(slotProps.option)"
+                :disabled="!canDeleteTag(slotProps.option)"
                 severity="danger"
                 raised
                 rounded
@@ -54,7 +61,7 @@
         </template>
       </Listbox>
 
-      <Button @click="tagCreate" class="w-auto">
+      <Button @click="tagCreate" class="w-auto" :disabled="!canManageTags">
         <PhPlus :size="16" />
         Добавить тег
       </Button>
@@ -77,13 +84,15 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { Dialog, Button, Listbox, Message } from 'primevue'
 import { PhBookmark, PhPencilSimple, PhPlus, PhTrash } from '@phosphor-icons/vue'
 
 import InfoTag from './InfoTag.vue'
 import TagEditDialog from './TagEditDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+import { usePermissions } from '@/composables/usePermissions'
 import { removeTagFromMainStyleCards } from '@/state/boardCards'
 import { getNextTagId, reserveTagId, tags } from '@/state/tags'
 
@@ -92,6 +101,9 @@ const tagEditDialogVisible = ref(false)
 const returnToManageAfterEdit = ref(false)
 const selectedTagId = ref(null)
 const editingTag = ref(null)
+const authStore = useAuthStore()
+const { canManageTags, canSetTagGlobal, canEditTag, canDeleteTag } = usePermissions()
+const visibleTags = computed(() => tags.value)
 
 const getNewTagTemplate = () => ({
   id: null,
@@ -108,16 +120,28 @@ const openTagEditDialog = () => {
 }
 
 const tagCreate = () => {
+  if (!canManageTags.value) {
+    return
+  }
+
   editingTag.value = getNewTagTemplate()
   openTagEditDialog()
 }
 
 const tagEdit = (tag) => {
+  if (!canEditTag(tag)) {
+    return
+  }
+
   editingTag.value = { ...tag }
   openTagEditDialog()
 }
 
 const tagDelete = (tag) => {
+  if (!canDeleteTag(tag)) {
+    return
+  }
+
   tags.value = tags.value.filter((item) => item.id !== tag.id)
   removeTagFromMainStyleCards(tag.id)
   if (selectedTagId.value === tag.id) {
@@ -126,12 +150,22 @@ const tagDelete = (tag) => {
 }
 
 const onTagSave = (payload) => {
+  const existingTag = tags.value.find((tag) => tag.id === payload.id)
+  if (existingTag && !canEditTag(existingTag)) {
+    return
+  }
+
+  if (!existingTag && !canManageTags.value) {
+    return
+  }
+
   const normalizedTag = {
     id: payload.id,
     name: payload.tagName,
     textColor: payload.tagTextColor,
     bgColor: payload.tagBgColor,
-    isGlobal: payload.tagIsGlobal,
+    isGlobal: canSetTagGlobal.value ? payload.tagIsGlobal : Boolean(existingTag?.isGlobal),
+    ownerUserId: existingTag?.ownerUserId ?? authStore.currentUser.id,
   }
 
   if (normalizedTag.id === null || normalizedTag.id === undefined) {

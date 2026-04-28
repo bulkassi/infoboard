@@ -19,6 +19,7 @@ const STATIC_BOARDS = [
     key: MAIN_BOARD_KEY,
     name: 'Главная',
     owner: 'Системная доска',
+    ownerUserId: null,
     kind: BOARD_KIND.MAIN,
     route: '/main',
   },
@@ -26,6 +27,7 @@ const STATIC_BOARDS = [
     key: ABOUT_BOARD_KEY,
     name: 'О нас',
     owner: 'Системная доска',
+    ownerUserId: null,
     kind: BOARD_KIND.ABOUT,
     route: '/about',
   },
@@ -33,6 +35,7 @@ const STATIC_BOARDS = [
     key: EMPLOYEES_BOARD_KEY,
     name: 'Сотрудники',
     owner: 'Системная доска',
+    ownerUserId: null,
     kind: BOARD_KIND.EMPLOYEES,
     route: '/employees',
   },
@@ -40,6 +43,7 @@ const STATIC_BOARDS = [
     key: SERVICES_BOARD_KEY,
     name: 'Сервисы',
     owner: 'Системная доска',
+    ownerUserId: null,
     kind: BOARD_KIND.SERVICES,
     route: '/services',
   },
@@ -231,10 +235,12 @@ export function getBoardIdFromRoute(route) {
 export function createUserBoard(payload = {}) {
   const boardId = getNextUserBoardId()
   const index = userBoards.value.length + 1
+  const ownerUserId = Number.isInteger(payload.ownerUserId) ? payload.ownerUserId : null
   const board = {
     id: boardId,
     name: String(payload.name ?? '').trim() || `Доска ${index}`,
     owner: String(payload.owner ?? '').trim() || DEFAULT_USER_BOARD_OWNER,
+    ownerUserId,
     kind: BOARD_KIND.USER,
     route: `/board/${boardId}`,
   }
@@ -244,8 +250,13 @@ export function createUserBoard(payload = {}) {
   return board
 }
 
-export function renameUserBoard(boardId, nextName) {
+export function renameUserBoard(boardId, nextName, options = {}) {
   if (!isUserBoard(boardId)) {
+    return false
+  }
+
+  const board = getBoardById(boardId)
+  if (!canManageUserBoard(board, options)) {
     return false
   }
 
@@ -268,8 +279,13 @@ export function renameUserBoard(boardId, nextName) {
   return true
 }
 
-export function deleteUserBoard(boardId) {
+export function deleteUserBoard(boardId, options = {}) {
   if (!isUserBoard(boardId)) {
+    return false
+  }
+
+  const board = getBoardById(boardId)
+  if (!canManageUserBoard(board, options)) {
     return false
   }
 
@@ -289,6 +305,43 @@ export function deleteUserBoard(boardId) {
   }
 
   return true
+}
+
+function canManageUserBoard(board, options = {}) {
+  if (!board || board.kind !== BOARD_KIND.USER) {
+    return false
+  }
+
+  if (options.isAdmin === true) {
+    return true
+  }
+
+  if (!Number.isInteger(options.actorUserId)) {
+    return true
+  }
+
+  return board.ownerUserId === options.actorUserId
+}
+
+function canManageBoardCards(boardId, options = {}) {
+  const board = getBoardById(boardId)
+  if (!board) {
+    return false
+  }
+
+  if (options.isAdmin === true) {
+    return true
+  }
+
+  if (board.kind !== BOARD_KIND.USER) {
+    return false
+  }
+
+  if (!Number.isInteger(options.actorUserId)) {
+    return true
+  }
+
+  return board.ownerUserId === options.actorUserId
 }
 
 export function isMainStyleCardBoard(boardId) {
@@ -393,7 +446,11 @@ export function getCardDisplayName(boardId, cardId) {
   return String(card.id)
 }
 
-export function createCard(boardId, payload) {
+export function createCard(boardId, payload, options = {}) {
+  if (!canManageBoardCards(boardId, options)) {
+    return null
+  }
+
   const cards = [...getCards(boardId)]
   const cardId = buildCardId(boardId)
   const nextCard = normalizeCardPayload(boardId, { ...payload, id: cardId })
@@ -402,7 +459,11 @@ export function createCard(boardId, payload) {
   return nextCard
 }
 
-export function updateCard(boardId, cardId, payload) {
+export function updateCard(boardId, cardId, payload, options = {}) {
+  if (!canManageBoardCards(boardId, options)) {
+    return null
+  }
+
   const cards = [...getCards(boardId)]
   const index = cards.findIndex((card) => card.id === cardId)
   if (index === -1) {
@@ -421,7 +482,11 @@ export function updateCard(boardId, cardId, payload) {
   return nextCard
 }
 
-export function deleteCard(boardId, cardId) {
+export function deleteCard(boardId, cardId, options = {}) {
+  if (!canManageBoardCards(boardId, options)) {
+    return false
+  }
+
   const cards = [...getCards(boardId)]
   const index = cards.findIndex((card) => card.id === cardId)
   if (index === -1) {

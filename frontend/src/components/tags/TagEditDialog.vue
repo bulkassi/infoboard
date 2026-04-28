@@ -45,7 +45,12 @@
 
           <div class="flex flex-row items-center justify-between">
             <label for="tagIsGlobal">Глобальность тега</label>
-            <Checkbox v-model="formState.tagIsGlobal" inputId="tagIsGlobal" binary />
+            <Checkbox
+              v-model="formState.tagIsGlobal"
+              inputId="tagIsGlobal"
+              binary
+              :disabled="!canSetTagGlobal"
+            />
           </div>
 
           <div class="flex gap-2">
@@ -63,6 +68,7 @@ import { computed, ref, watch } from 'vue'
 
 import { Button, Checkbox, ColorPicker, Dialog, Fieldset, InputText } from 'primevue'
 import { PhBookmark } from '@phosphor-icons/vue'
+import { usePermissions } from '@/composables/usePermissions'
 
 const visible = defineModel('visible')
 
@@ -74,6 +80,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['save'])
+const { canSetTagGlobal } = usePermissions()
 
 const getDefaultFormState = () => ({
   id: null,
@@ -127,7 +134,7 @@ const onTagFormSubmit = () => {
     tagName,
     tagTextColor: formState.value.tagTextColor,
     tagBgColor: formState.value.tagBgColor,
-    tagIsGlobal: formState.value.tagIsGlobal,
+    tagIsGlobal: canSetTagGlobal.value ? formState.value.tagIsGlobal : false,
   })
   visible.value = false
 }
