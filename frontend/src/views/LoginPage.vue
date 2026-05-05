@@ -3,17 +3,13 @@
     <Card class="w-full max-w-md shadow-lg">
       <template #header>
         <div class="bg-primary-500 p-4 text-center text-white">
-          <h1 class="text-2xl font-bold">Вход в систему</h1>
-          <p class="text-sm opacity-80">Информационное табло</p>
+          <h1 class="text-2xl font-bold text-brand-500">Вход в систему</h1>
+          <p class="text-sm opacity-80 text-brand-500">Электронная информационная доска</p>
         </div>
       </template>
 
       <template #content>
         <div class="flex flex-col gap-6 py-4">
-          <Message severity="info" :closable="false">
-            Войдите, используя имя пользователя из списка и пароль для этого пользователя.
-          </Message>
-
           <Message v-if="errorMessage" severity="error" :closable="false">
             {{ errorMessage }}
           </Message>
@@ -50,16 +46,9 @@
 
       <template #footer>
         <div class="flex gap-3">
-          <Button
-            label="Назад"
-            icon="pi pi-arrow-left"
-            outlined
-            class="w-full"
-            @click="handleCancel"
-          />
+          <Button label="Назад" outlined class="w-full" @click="handleCancel" />
           <Button
             label="Войти"
-            icon="pi pi-sign-in"
             class="w-full"
             @click="handleLogin"
             :loading="isSubmitting"
