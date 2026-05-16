@@ -2,8 +2,6 @@ services:
   db:
     image: postgres:18
     restart: always
-    env_file:
-      - .env
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -24,9 +22,8 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - POSTGRES_SERVER=${POSTGRES_SERVER}
+      - POSTGRES_SERVER=db
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}

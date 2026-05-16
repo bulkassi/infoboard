@@ -154,18 +154,15 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Button, Dialog, Fieldset, InputText, Listbox, Message, Textarea } from 'primevue'
 import { PhCards } from '@phosphor-icons/vue'
 import FileUploader from '@/components/FileUploader.vue'
 import InfoTag from '@/components/tags/InfoTag.vue'
 import { usePermissions } from '@/composables/usePermissions'
-import {
-  EMPLOYEES_BOARD_KEY,
-  SERVICES_BOARD_KEY,
-  getBoardById,
-  isMainStyleCardBoard,
-} from '@/state/boardCards'
-import { tags } from '@/state/tags'
+import { EMPLOYEES_BOARD_KEY, SERVICES_BOARD_KEY } from '@/stores/boardCards'
+import { useBoardCardsStore } from '@/stores/boardCards'
+import { useTagsStore } from '@/stores/tags'
 
 const visible = defineModel('visible')
 
@@ -182,6 +179,9 @@ const props = defineProps({
 
 const emit = defineEmits(['save'])
 const { canAssignTagToCard } = usePermissions()
+const boardCardsStore = useBoardCardsStore()
+const tagsStore = useTagsStore()
+const { tags } = storeToRefs(tagsStore)
 
 const isSubmitAttempted = ref(false)
 const validationError = ref('')
@@ -203,10 +203,11 @@ const getDefaultFormState = () => ({
 
 const formState = ref(getDefaultFormState())
 
-const isMainBoard = computed(() => isMainStyleCardBoard(props.boardId))
-const isEmployeesBoard = computed(() => props.boardId === EMPLOYEES_BOARD_KEY)
-const isServicesBoard = computed(() => props.boardId === SERVICES_BOARD_KEY)
-const currentBoard = computed(() => getBoardById(props.boardId))
+const isMainBoard = computed(() => boardCardsStore.isMainStyleCardBoard(props.boardId))
+const currentBoard = computed(() => boardCardsStore.getBoardById(props.boardId))
+const currentBoardKind = computed(() => currentBoard.value?.kind ?? null)
+const isEmployeesBoard = computed(() => currentBoardKind.value === EMPLOYEES_BOARD_KEY)
+const isServicesBoard = computed(() => currentBoardKind.value === SERVICES_BOARD_KEY)
 const availableTags = computed(() => {
   return tags.value.filter((tag) => canAssignTagToCard(tag, currentBoard.value))
 })

@@ -28,13 +28,14 @@ function isOverlapping(a, b) {
 }
 
 function hasOverlapForCard(layouts, cardId) {
-  const target = layouts[cardId]
+  const normalizedCardId = String(cardId)
+  const target = layouts[normalizedCardId]
   if (!target) {
     return false
   }
 
   return Object.entries(layouts).some(([otherId, otherLayout]) => {
-    if (otherId === cardId) {
+    if (otherId === normalizedCardId) {
       return false
     }
 
@@ -176,7 +177,11 @@ export const useBoardsStore = defineStore('boards', () => {
     }
 
     const gridSettings = getDraftGridSettings(boardId)
-    const targetRows = clamp(Number(rowCount) || DEFAULT_GRID_SETTINGS.rows, MIN_GRID_ROWS, MAX_GRID_ROWS)
+    const targetRows = clamp(
+      Number(rowCount) || DEFAULT_GRID_SETTINGS.rows,
+      MIN_GRID_ROWS,
+      MAX_GRID_ROWS,
+    )
     const currentLayouts = { ...getActiveBoardLayouts(boardId) }
     const testGridSettings = {
       ...gridSettings,
@@ -224,6 +229,15 @@ export const useBoardsStore = defineStore('boards', () => {
 
     draftLayoutsById.value[boardId] = existingLayouts
     return true
+  }
+
+  function setCardLayout(boardId, cardId, layout) {
+    const existingLayouts = { ...(boardLayoutsById.value[boardId] ?? {}) }
+    existingLayouts[cardId] = normalizeCardLayout(layout, getGridSettings(boardId))
+    boardLayoutsById.value = {
+      ...boardLayoutsById.value,
+      [boardId]: existingLayouts,
+    }
   }
 
   function resetDraftLayoutOverlap(boardId) {
@@ -279,6 +293,7 @@ export const useBoardsStore = defineStore('boards', () => {
     cancelLayoutEdit,
     setDraftRowCount,
     updateDraftCardLayout,
+    setCardLayout,
     canPlaceCardLayout,
     resetDraftLayoutOverlap,
     MIN_GRID_ROWS,

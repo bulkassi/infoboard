@@ -65,12 +65,10 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Card, Button, Message, InputText, Password } from 'primevue'
 import { useAuthStore } from '@/stores/auth'
-import { useUsersStore } from '@/stores/users'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const usersStore = useUsersStore()
 
 const username = ref('')
 const password = ref('')
@@ -82,17 +80,12 @@ const handleLogin = async () => {
   isSubmitting.value = true
 
   try {
-    const user = usersStore.findUserByCredentials(username.value, password.value)
-
-    if (!user) {
-      errorMessage.value = 'Неверное имя пользователя или пароль.'
-      return
-    }
-
-    authStore.setAuthenticatedUser(user)
+    await authStore.login(username.value, password.value)
 
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/main'
     await router.push(redirect)
+  } catch {
+    errorMessage.value = 'Неверное имя пользователя или пароль.'
   } finally {
     isSubmitting.value = false
   }

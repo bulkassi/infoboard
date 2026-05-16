@@ -18,10 +18,12 @@ from app.models import (
     BoardUpdate,
     ShareLink,
     TagToCard,
+    CardBase,
     CardCommon,
     CardEmployee,
     CardService,
     User,
+    UserRole,
 )
 
 router = APIRouter(prefix="/boards")
@@ -51,7 +53,10 @@ def _is_share_token_valid(
     ).first()
     if share is None:
         return False
-    return share.expires_at >= datetime.now(timezone.utc)
+    expires_at = share.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at >= datetime.now(timezone.utc)
 
 
 def _ensure_can_view_board(
@@ -59,11 +64,17 @@ def _ensure_can_view_board(
 ) -> None:
     if board.type in PUBLIC_TYPES:
         return
-    if user is not None:
+    if user is not None and board.owner_id == user.id:
         return
     if _is_share_token_valid(session, board.id, share_token):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
+def _ensure_can_edit_about_board(board: Board, user: User) -> None:
+    if board.type == BoardType.ABOUT and user.role == UserRole.ADMIN:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Edit access denied")
 
 
 @router.get("/", response_model=list[BoardRead])
@@ -71,7 +82,9 @@ def get_boards(session: SessionDep, user: User | None = Depends(get_optional_use
     if user is None:
         boards = session.exec(select(Board).where(Board.type.in_(PUBLIC_TYPES))).all()
     else:
-        boards = session.exec(select(Board)).all()
+        boards = session.exec(
+            select(Board).where((Board.type.in_(PUBLIC_TYPES)) | (Board.owner_id == user.id))
+        ).all()
     return [BoardRead.model_validate(board) for board in boards]
 
 
@@ -115,7 +128,7 @@ def update_about_board(
     # only editable according to board rules
     if board.type != BoardType.ABOUT:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not an About board")
-    _ensure_can_edit_board(session, board, user)
+    _ensure_can_edit_about_board(board, user)
     about = session.exec(select(BoardAbout).where(BoardAbout.board_id == board.id)).first()
     if about is None:
         about = BoardAbout(board_id=board.id, content=payload.content)
@@ -169,24 +182,33 @@ def delete_board(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only common boards can be deleted"
         )
     common_ids = session.exec(
-        select(CardCommon.id).where(CardCommon.board_id == board.id)
+        select(CardCommon.card_id)
+        .join(CardBase, CardCommon.card_id == CardBase.id)
+        .where(CardBase.board_id == board.id)
     ).all()
     employee_ids = session.exec(
-        select(CardEmployee.id).where(CardEmployee.board_id == board.id)
+        select(CardEmployee.card_id)
+        .join(CardBase, CardEmployee.card_id == CardBase.id)
+        .where(CardBase.board_id == board.id)
     ).all()
     service_ids = session.exec(
-        select(CardService.id).where(CardService.board_id == board.id)
+        select(CardService.card_id)
+        .join(CardBase, CardService.card_id == CardBase.id)
+        .where(CardBase.board_id == board.id)
     ).all()
+    all_ids = set(common_ids) | set(employee_ids) | set(service_ids)
 
     if common_ids:
         session.exec(
             delete(TagToCard).where(TagToCard.card_id.in_(common_ids))
         )
-        session.exec(delete(CardCommon).where(CardCommon.id.in_(common_ids)))
+        session.exec(delete(CardCommon).where(CardCommon.card_id.in_(common_ids)))
     if employee_ids:
-        session.exec(delete(CardEmployee).where(CardEmployee.id.in_(employee_ids)))
+        session.exec(delete(CardEmployee).where(CardEmployee.card_id.in_(employee_ids)))
     if service_ids:
-        session.exec(delete(CardService).where(CardService.id.in_(service_ids)))
+        session.exec(delete(CardService).where(CardService.card_id.in_(service_ids)))
+    if all_ids:
+        session.exec(delete(CardBase).where(CardBase.id.in_(all_ids)))
 
     session.exec(delete(ShareLink).where(ShareLink.board_id == board.id))
     session.exec(delete(BoardAbout).where(BoardAbout.board_id == board.id))

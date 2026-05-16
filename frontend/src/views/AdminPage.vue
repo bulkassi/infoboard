@@ -24,11 +24,10 @@
       <Column field="name" header="Имя пользователя" sortable>
         <template #body="{ data }">
           <div class="flex flex-row items-center justify-start gap-2">
-            <Avatar class="p-overlay-badge" :image="data.avatar" shape="circle" size="large" />
             {{ data.name }}
           </div>
-        </template></Column
-      >
+        </template>
+      </Column>
       <Column field="isAdmin" header="Роль" sortable>
         <template #body="{ data }">
           <Tag severity="success" v-if="data.isAdmin">Администратор</Tag>
@@ -64,10 +63,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
 import { PhPencilSimple, PhTrash } from '@phosphor-icons/vue'
-import { Avatar, Column, DataTable, Button, Tag } from 'primevue'
+import { Column, DataTable, Button, Tag } from 'primevue'
 import UserEditDialog from '@/components/admin/UserEditDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
@@ -76,7 +76,7 @@ const userEditDialogVisible = ref(false)
 const editingUser = ref(null)
 const authStore = useAuthStore()
 const usersStore = useUsersStore()
-const users = computed(() => usersStore.listUsers())
+const { users } = storeToRefs(usersStore)
 
 const openCreateUserDialog = () => {
   editingUser.value = null
@@ -88,27 +88,17 @@ const openEditUserDialog = (user) => {
   userEditDialogVisible.value = true
 }
 
-const onUserSave = (payload) => {
+const onUserSave = async (payload) => {
   const normalizedUser = {
     name: payload.userName,
     password: payload.userPassword ?? '',
     isAdmin: payload.userIsAdmin,
-    avatar: payload.avatarUrl,
-  }
-
-  if (payload.avatarFile) {
-    normalizedUser.avatar = URL.createObjectURL(payload.avatarFile)
   }
 
   if (payload.id === null || payload.id === undefined) {
-    usersStore.createUser(normalizedUser)
+    await usersStore.createUser(normalizedUser)
   } else {
-    const current = users.value.find((user) => user.id === payload.id)
-    if (current?.avatar?.startsWith('blob:') && current.avatar !== normalizedUser.avatar) {
-      URL.revokeObjectURL(current.avatar)
-    }
-
-    usersStore.updateUser(payload.id, normalizedUser)
+    await usersStore.updateUser(payload.id, normalizedUser)
   }
 
   editingUser.value = null
@@ -118,11 +108,15 @@ const isCurrentUser = (user) => {
   return user.id === authStore.currentUser.id
 }
 
-const onUserDelete = (user) => {
+const onUserDelete = async (user) => {
   if (isCurrentUser(user)) {
     return
   }
 
-  usersStore.deleteUser(user.id)
+  await usersStore.deleteUser(user.id)
 }
+
+onMounted(() => {
+  usersStore.fetchUsers()
+})
 </script>

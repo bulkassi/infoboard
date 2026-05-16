@@ -61,11 +61,13 @@
 
   <AppDrawer
     v-model:visible="drawerVisible"
+    @toggle-slideshow="handleToggleSlideshow"
     @open-tag-manage="tagManageDialogVisible = true"
     @open-about-edit="aboutEditDialogVisible = true"
     @open-card-create="openCardCreateDialog"
     @open-card-edit="openCardEditPicker"
     @open-card-delete="openCardDeletePicker"
+    @open-share-links="shareLinksDialogVisible = true"
     @board-deleted="clearCardSelection"
   />
   <TagManageDialog v-model:visible="tagManageDialogVisible" />
@@ -80,12 +82,14 @@
     :card="cardEditMode === 'edit' ? activeCard : null"
     @save="onCardSave"
   />
+  <ShareLinksDialog v-model:visible="shareLinksDialogVisible" :boardId="currentBoardId" />
   <ConfirmDialog />
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 import { PhChalkboardSimple, PhList, PhPlusCircle } from '@phosphor-icons/vue'
 import { Button, Select } from 'primevue'
@@ -96,42 +100,32 @@ import AppDrawer from './AppDrawer.vue'
 import AboutEditDialog from '../about/AboutEditDialog.vue'
 import TagManageDialog from '../tags/TagManageDialog.vue'
 import CardEditDialog from '../cards/CardEditDialog.vue'
-import { useAboutBoardState } from '@/state/aboutBoard'
+import ShareLinksDialog from '../share/ShareLinksDialog.vue'
+import { useAboutStore } from '@/stores/about'
 import { useAuthStore } from '@/stores/auth'
+import { useUsersStore } from '@/stores/users'
 import { usePermissions } from '@/composables/usePermissions'
-import {
-  clearCardSelection,
-  createUserBoard,
-  createCard,
-  deleteCard,
-  getBoardById,
-  getBoardDisplayName,
-  getBoardIdFromRoute,
-  getBoardRoute,
-  getCardById,
-  getCardDisplayName,
-  getSelectableBoards,
-  isCardBoard,
-  normalizeBoardId,
-  selectedCardActionEvent,
-  startCardSelection,
-  updateCard,
-} from '@/state/boardCards'
+import { useBoardCardsStore } from '@/stores/boardCards'
 
 const drawerVisible = ref(false)
 const tagManageDialogVisible = ref(false)
 const aboutEditDialogVisible = ref(false)
 const cardEditDialogVisible = ref(false)
+const shareLinksDialogVisible = ref(false)
 const cardEditMode = ref('create')
 const selectedCardId = ref(null)
 const selectedBoardId = ref(null)
 
-const { aboutContent } = useAboutBoardState()
+const boardCardsStore = useBoardCardsStore()
+const aboutStore = useAboutStore()
+const usersStore = useUsersStore()
+const { content: aboutContent } = storeToRefs(aboutStore)
 const route = useRoute()
 const router = useRouter()
 const confirm = useConfirm()
 const authStore = useAuthStore()
 const { canCreateBoard, canManageCards, canManageAbout } = usePermissions()
+const { selectedCardActionEvent } = storeToRefs(boardCardsStore)
 
 const navLinks = [
   { to: '/main', label: 'Главная' },
@@ -140,12 +134,61 @@ const navLinks = [
   { to: '/services', label: 'Сервисы' },
 ]
 
-const boards = computed(() => getSelectableBoards())
+// Slideshow configuration
+const SLIDESHOW_ROUTES = ['/main', '/about', '/employees', '/services']
+const SLIDESHOW_INTERVAL_MS = 5000
+const isSlideshowActive = ref(false)
+let slideshowTimer = null
 
-const currentBoardId = computed(() => getBoardIdFromRoute(route))
-const currentBoard = computed(() => getBoardById(currentBoardId.value))
+const stopSlideshowOnInteraction = (ev) => {
+  stopSlideshow()
+}
 
-const isCardBoardRoute = computed(() => isCardBoard(currentBoardId.value))
+const startSlideshow = () => {
+  if (isSlideshowActive.value) return
+  isSlideshowActive.value = true
+
+  // immediately go to first slide
+  router.push(SLIDESHOW_ROUTES[0])
+
+  slideshowTimer = setInterval(() => {
+    const current = router.currentRoute.value.path || '/'
+    const idx = SLIDESHOW_ROUTES.indexOf(current)
+    const nextIdx = idx === -1 ? 0 : (idx + 1) % SLIDESHOW_ROUTES.length
+    router.push(SLIDESHOW_ROUTES[nextIdx])
+  }, SLIDESHOW_INTERVAL_MS)
+
+  window.addEventListener('keydown', stopSlideshowOnInteraction, { once: true })
+  window.addEventListener('mousedown', stopSlideshowOnInteraction, { once: true })
+  window.addEventListener('touchstart', stopSlideshowOnInteraction, { once: true })
+}
+
+const stopSlideshow = () => {
+  if (!isSlideshowActive.value) return
+  isSlideshowActive.value = false
+  if (slideshowTimer) {
+    clearInterval(slideshowTimer)
+    slideshowTimer = null
+  }
+  window.removeEventListener('keydown', stopSlideshowOnInteraction)
+  window.removeEventListener('mousedown', stopSlideshowOnInteraction)
+  window.removeEventListener('touchstart', stopSlideshowOnInteraction)
+}
+
+const handleToggleSlideshow = () => {
+  if (isSlideshowActive.value) {
+    stopSlideshow()
+  } else {
+    startSlideshow()
+  }
+}
+
+const boards = computed(() => boardCardsStore.getSelectableBoards())
+
+const currentBoardId = computed(() => boardCardsStore.getBoardIdFromRoute(route))
+const currentBoard = computed(() => boardCardsStore.getBoardById(currentBoardId.value))
+
+const isCardBoardRoute = computed(() => boardCardsStore.isCardBoard(currentBoardId.value))
 const canManageCurrentBoardCards = computed(() => canManageCards(currentBoard.value))
 
 const activeCard = computed(() => {
@@ -153,33 +196,33 @@ const activeCard = computed(() => {
     return null
   }
 
-  return getCardById(currentBoardId.value, selectedCardId.value)
+  return boardCardsStore.getCardById(currentBoardId.value, selectedCardId.value)
 })
 
 const getBoardName = () => {
-  return getBoardDisplayName(currentBoardId.value)
+  return boardCardsStore.getBoardDisplayName(currentBoardId.value)
 }
 
-const onCreateBoard = () => {
+const onCreateBoard = async () => {
   if (!canCreateBoard.value) {
     return
   }
 
-  const board = createUserBoard({
+  const board = await boardCardsStore.createUserBoard({
     owner: authStore.currentUser.name,
     ownerUserId: authStore.currentUser.id,
   })
-  router.push(getBoardRoute(board.id))
+  router.push(boardCardsStore.getBoardRoute(board.id))
 }
 
 const onBoardSelect = (boardId) => {
-  const normalizedBoardId = normalizeBoardId(boardId)
+  const normalizedBoardId = boardCardsStore.normalizeBoardId(boardId)
 
   if (normalizedBoardId == null || normalizedBoardId === currentBoardId.value) {
     return
   }
 
-  router.push(getBoardRoute(normalizedBoardId))
+  router.push(boardCardsStore.getBoardRoute(normalizedBoardId))
 }
 
 const openCardCreateDialog = () => {
@@ -187,7 +230,7 @@ const openCardCreateDialog = () => {
     return
   }
 
-  clearCardSelection()
+  boardCardsStore.clearCardSelection()
   cardEditMode.value = 'create'
   selectedCardId.value = null
   cardEditDialogVisible.value = true
@@ -198,7 +241,7 @@ const openCardEditPicker = () => {
     return
   }
 
-  startCardSelection('edit', currentBoardId.value)
+  boardCardsStore.startCardSelection('edit', currentBoardId.value)
 }
 
 const openCardDeletePicker = () => {
@@ -206,10 +249,14 @@ const openCardDeletePicker = () => {
     return
   }
 
-  startCardSelection('delete', currentBoardId.value)
+  boardCardsStore.startCardSelection('delete', currentBoardId.value)
 }
 
-const onCardSave = (payload) => {
+const clearCardSelection = () => {
+  boardCardsStore.clearCardSelection()
+}
+
+const onCardSave = async (payload) => {
   if (!isCardBoardRoute.value || !canManageCurrentBoardCards.value) {
     return
   }
@@ -220,11 +267,11 @@ const onCardSave = (payload) => {
   }
 
   if (cardEditMode.value === 'edit' && selectedCardId.value) {
-    updateCard(currentBoardId.value, selectedCardId.value, payload, actor)
+    await boardCardsStore.updateCard(currentBoardId.value, selectedCardId.value, payload, actor)
     return
   }
 
-  createCard(currentBoardId.value, payload, actor)
+  await boardCardsStore.createCard(currentBoardId.value, payload, actor)
 }
 
 watch(selectedCardActionEvent, (event) => {
@@ -244,7 +291,7 @@ watch(selectedCardActionEvent, (event) => {
     return
   }
 
-  const cardName = getCardDisplayName(event.boardId, event.cardId)
+  const cardName = boardCardsStore.getCardDisplayName(event.boardId, event.cardId)
   confirm.require({
     header: 'Подтверждение удаления',
     message: `Удалить карточку "${cardName}" на доске "${getBoardName()}"?`,
@@ -259,7 +306,7 @@ watch(selectedCardActionEvent, (event) => {
       severity: 'danger',
     },
     accept: () => {
-      deleteCard(event.boardId, event.cardId, {
+      boardCardsStore.deleteCard(event.boardId, event.cardId, {
         actorUserId: authStore.currentUser.id,
         isAdmin: authStore.isAdmin,
       })
@@ -270,14 +317,14 @@ watch(selectedCardActionEvent, (event) => {
 watch(
   () => route.path,
   () => {
-    clearCardSelection()
+    boardCardsStore.clearCardSelection()
   },
 )
 
 watch(
   currentBoardId,
   (boardId) => {
-    selectedBoardId.value = isCardBoard(boardId) ? boardId : null
+    selectedBoardId.value = boardCardsStore.isCardBoard(boardId) ? boardId : null
   },
   { immediate: true },
 )
@@ -287,6 +334,44 @@ const onAboutSave = (nextContent) => {
     return
   }
 
-  aboutContent.value = nextContent
+  aboutStore.updateAbout(nextContent)
 }
+
+const syncAdminUsers = () => {
+  if (authStore.isAdmin) {
+    usersStore.fetchUsers()
+    return
+  }
+
+  usersStore.clearUsers()
+}
+
+onMounted(() => {
+  boardCardsStore.loadBoards()
+  if (authStore.isAuthenticated) {
+    aboutStore.fetchAbout()
+  }
+  syncAdminUsers()
+})
+
+onBeforeUnmount(() => {
+  stopSlideshow()
+})
+
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    boardCardsStore.loadBoards()
+    if (isAuthenticated) {
+      aboutStore.fetchAbout()
+    }
+  },
+)
+
+watch(
+  () => authStore.isAdmin,
+  () => {
+    syncAdminUsers()
+  },
+)
 </script>

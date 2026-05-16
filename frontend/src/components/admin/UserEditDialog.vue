@@ -44,36 +44,15 @@
             <Checkbox v-model="formState.userIsAdmin" inputId="userIsAdmin" binary />
           </div>
 
-          <Fieldset pt:root:class="flex flex-col gap-8">
-            <template #legend>
-              <span class="text-brand-500 text-md font-medium">Аватар</span>
-            </template>
-
-            <FileUploader
-              name="avatar[]"
-              acceptPattern="image/*"
-              :maxFileSize="1000000"
-              :fileLimit="1"
-              :autoProcess="true"
-              chooseLabel="Выбрать изображение"
-              removeLabel="Удалить файл"
-              emptyLabel="Файл не выбран"
-              @files-selected="onAvatarFilesSelected"
-              @files-cleared="onAvatarFilesCleared"
-            />
-            <small class="text-color-secondary">Разрешены только изображения до 1MB.</small>
-
-            <div v-if="formState.avatarUrl && !formState.avatarFile" class="flex flex-col gap-2">
-              <span class="text-brand-500">Текущий аватар</span>
-              <Avatar :image="formState.avatarUrl" shape="circle" size="xlarge" />
-            </div>
-          </Fieldset>
+          <Message size="small" severity="secondary" variant="simple">
+            Аватары пользователей отключены в серверной версии.
+          </Message>
         </div>
       </form>
 
       <div class="flex justify-end gap-2">
         <Button type="button" severity="secondary" @click="resetUserForm">Отменить</Button>
-        <Button type="submit">Сохранить</Button>
+        <Button type="button" @click="onUserFormSubmit">Сохранить</Button>
       </div>
     </Fieldset>
   </Dialog>
@@ -82,10 +61,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 
-import { Avatar, Button, Checkbox, Dialog, Fieldset, InputText } from 'primevue'
+import { Button, Checkbox, Dialog, Fieldset, InputText, Message } from 'primevue'
 import { PhUserCircle } from '@phosphor-icons/vue'
-
-import FileUploader from '@/components/FileUploader.vue'
 
 const visible = defineModel('visible')
 
@@ -103,8 +80,6 @@ const getDefaultFormState = () => ({
   userName: '',
   userPassword: '',
   userIsAdmin: false,
-  avatarUrl: '',
-  avatarFile: null,
 })
 
 const formState = ref(getDefaultFormState())
@@ -124,17 +99,7 @@ const applyUserToForm = (user) => {
     userName: user.name ?? '',
     userPassword: user.password ?? '',
     userIsAdmin: Boolean(user.isAdmin),
-    avatarUrl: user.avatar ?? '',
-    avatarFile: null,
   }
-}
-
-const onAvatarFilesSelected = (files) => {
-  formState.value.avatarFile = files.length > 0 ? files[0].file : null
-}
-
-const onAvatarFilesCleared = () => {
-  formState.value.avatarFile = null
 }
 
 const resetUserForm = () => {
@@ -153,8 +118,6 @@ const onUserFormSubmit = () => {
     userName,
     userPassword: formState.value.userPassword,
     userIsAdmin: formState.value.userIsAdmin,
-    avatarFile: formState.value.avatarFile,
-    avatarUrl: formState.value.avatarUrl,
   })
   visible.value = false
 }

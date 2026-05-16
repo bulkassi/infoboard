@@ -62,10 +62,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  await authStore.bootstrapSession()
+
+  const hasShareToken = typeof to.query.share_token === 'string'
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated && !hasShareToken) {
     return {
       path: '/login',
       query: { redirect: to.fullPath },

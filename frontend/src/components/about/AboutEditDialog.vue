@@ -17,7 +17,13 @@
       </div>
     </template>
 
-    <Editor v-model="draftContent" editorStyle="height: 320px">
+    <QuillEditor
+      v-if="visible"
+      :modelValue="draftContent"
+      editorStyle="height: 320px"
+      @update:modelValue="onEditorUpdate"
+      @load="onEditorLoad"
+    >
       <template #toolbar>
         <span class="ql-formats">
           <select class="ql-header">
@@ -48,7 +54,7 @@
           <button class="ql-clean"></button>
         </span>
       </template>
-    </Editor>
+    </QuillEditor>
 
     <Message v-if="validationError" severity="error" size="small">{{ validationError }}</Message>
 
@@ -64,7 +70,7 @@ import { ref, watch } from 'vue'
 
 import { PhPencilSimple } from '@phosphor-icons/vue'
 import { Button, Dialog, Message } from 'primevue'
-import Editor from 'primevue/editor'
+import QuillEditor from '../quill/QuillEditor.vue'
 
 const visible = defineModel('visible')
 
@@ -78,7 +84,9 @@ const props = defineProps({
 const emit = defineEmits(['save'])
 
 const draftContent = ref('')
+const userEdited = ref(false)
 const validationError = ref('')
+const quillInstance = ref(null)
 
 const htmlToText = (html) =>
   html
@@ -89,7 +97,27 @@ const htmlToText = (html) =>
 
 const syncFromProps = () => {
   draftContent.value = props.content ?? ''
+  userEdited.value = false
   validationError.value = ''
+}
+
+const onEditorUpdate = (value) => {
+  draftContent.value = value
+  userEdited.value = true
+  validationError.value = ''
+}
+
+const onEditorLoad = ({ instance }) => {
+  quillInstance.value = instance ?? null
+}
+
+const getEditorHtml = () => {
+  if (!quillInstance.value) {
+    return draftContent.value
+  }
+
+  const html = quillInstance.value.root?.innerHTML ?? ''
+  return html === '<p><br></p>' ? '' : html
 }
 
 const resetAndClose = () => {
@@ -98,19 +126,22 @@ const resetAndClose = () => {
 }
 
 const onSubmit = () => {
-  if (!htmlToText(draftContent.value)) {
+  const latestContent = getEditorHtml()
+
+  if (!htmlToText(latestContent)) {
     validationError.value = 'Добавьте текст перед сохранением.'
     return
   }
 
-  emit('save', draftContent.value)
+  draftContent.value = latestContent
+  emit('save', latestContent)
   visible.value = false
 }
 
 watch(
   () => props.content,
   () => {
-    if (!visible.value) {
+    if (!visible.value || !userEdited.value) {
       syncFromProps()
     }
   },
@@ -119,6 +150,9 @@ watch(
 watch(visible, (isVisible) => {
   if (isVisible) {
     syncFromProps()
+    return
   }
+
+  quillInstance.value = null
 })
 </script>

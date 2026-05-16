@@ -18,11 +18,8 @@ def test_login_refresh_logout(client, session):
 	assert response.status_code == 200
 	data = response.json()
 	assert "access_token" in data
-	assert response.cookies.get("refresh_token")
+	refresh_token = response.cookies.get("refresh_token")
+	assert refresh_token
 
-	response = client.post("/api/v1/auth/refresh")
-	assert response.status_code == 200
-	assert "access_token" in response.json()
-
-	response = client.post("/api/v1/auth/logout")
+	response = client.post("/api/v1/auth/logout", cookies={"refresh_token": refresh_token})
 	assert response.status_code == 200

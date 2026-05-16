@@ -19,6 +19,12 @@ def _get_board_or_404(session: SessionDep, board_id: int) -> Board:
 	return board
 
 
+def _ensure_can_manage_board(board: Board, user: User) -> None:
+	if board.owner_id == user.id:
+		return
+	raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
 @router.post("/boards/{board_id}/share-links", response_model=ShareLinkRead)
 def create_share_link(
 	session: SessionDep,
@@ -27,6 +33,7 @@ def create_share_link(
 	user: User = Depends(get_current_user),
 ) -> ShareLinkRead:
 	board = _get_board_or_404(session, board_id)
+	_ensure_can_manage_board(board, user)
 	_ = payload
 	expires_at = datetime.now(timezone.utc) + timedelta(days=1)
 	share = ShareLink(
@@ -42,7 +49,8 @@ def create_share_link(
 def list_share_links(
 	session: SessionDep, board_id: int, user: User = Depends(get_current_user)
 ) -> list[ShareLinkRead]:
-	_get_board_or_404(session, board_id)
+	board = _get_board_or_404(session, board_id)
+	_ensure_can_manage_board(board, user)
 	shares = session.exec(
 		select(ShareLink).where(ShareLink.board_id == board_id)
 	).all()
@@ -56,6 +64,8 @@ def delete_share_link(
 	share = session.get(ShareLink, token)
 	if share is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share link not found")
+	board = _get_board_or_404(session, share.board_id)
+	_ensure_can_manage_board(board, user)
 	session.delete(share)
 	session.commit()
 

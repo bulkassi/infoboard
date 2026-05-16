@@ -57,23 +57,23 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import CardNormal from '@/components/CardNormal.vue'
 import { useBoardsStore } from '@/stores/boards'
-import { tags } from '@/state/tags'
-import {
-  MAIN_BOARD_KEY,
-  getBoardRoute,
-  getBoardIdFromRoute,
-  getCards,
-  isUserBoard,
-  pendingCardSelection,
-  pickCardOnBoard,
-} from '@/state/boardCards'
+import { useTagsStore } from '@/stores/tags'
+import { useAuthStore } from '@/stores/auth'
+import { MAIN_BOARD_KEY, INVALID_BOARD_ID } from '@/stores/boardCards'
+import { useBoardCardsStore } from '@/stores/boardCards'
 
 const DEFAULT_USER_CARD_LAYOUT = { col: 1, row: 1, colSpan: 1, rowSpan: 1 }
 const DEFAULT_LAYOUT_SPAN = { colSpan: 4, rowSpan: 3 }
 
 const boardsStore = useBoardsStore()
+const boardCardsStore = useBoardCardsStore()
+const tagsStore = useTagsStore()
+const authStore = useAuthStore()
+const { pendingCardSelection } = storeToRefs(boardCardsStore)
+const { tags } = storeToRefs(tagsStore)
 const route = useRoute()
 const router = useRouter()
 const gridRef = ref(null)
@@ -84,12 +84,13 @@ const resizePreviewLayout = ref(null)
 const isDesktop = ref(false)
 const transientLayouts = ref({})
 
-const boardId = computed(() => getBoardIdFromRoute(route))
-
-const cards = computed(() => getCards(boardId.value))
-const tagById = computed(() => {
-  return new Map(tags.value.map((tag) => [tag.id, tag]))
+const boardId = computed(() => boardCardsStore.getBoardIdFromRoute(route))
+const shareToken = computed(() => {
+  return typeof route.query.share_token === 'string' ? route.query.share_token : ''
 })
+
+const cards = computed(() => boardCardsStore.getCards(boardId.value))
+const tagById = computed(() => new Map(tags.value.map((tag) => [tag.id, tag])))
 
 const resolveCardTags = (card) => {
   if (!Array.isArray(card.tagIds) || card.tagIds.length === 0) {
@@ -271,7 +272,7 @@ const onCardClick = (cardId) => {
     return
   }
 
-  pickCardOnBoard(boardId.value, cardId)
+  boardCardsStore.pickCardOnBoard(boardId.value, cardId)
 }
 
 const onGridDragOver = (event) => {
@@ -453,7 +454,7 @@ const syncTransientLayouts = () => {
     ...activeLayouts.value,
     ...nextTransient,
   }
-  const activeIds = new Set(cards.value.map((card) => card.id))
+  const activeIds = new Set(cards.value.map((card) => String(card.id)))
 
   Object.keys(nextTransient).forEach((cardId) => {
     if (!activeIds.has(cardId) || activeLayouts.value[cardId]) {
@@ -478,6 +479,10 @@ const syncTransientLayouts = () => {
 onMounted(() => {
   updateViewportState()
   window.addEventListener('resize', updateViewportState)
+  boardCardsStore.loadBoards()
+  if (authStore.isAuthenticated) {
+    tagsStore.fetchTags()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -494,14 +499,25 @@ watch(canEdit, (editable) => {
 })
 
 watch(
-  () => boardId.value,
-  (nextBoardId) => {
-    if (!isUserBoard(nextBoardId)) {
-      router.replace(getBoardRoute(MAIN_BOARD_KEY))
+  [boardId, shareToken],
+  async ([nextBoardId, nextShareToken]) => {
+    if (!Number.isInteger(nextBoardId)) {
       return
     }
 
-    boardsStore.initializeBoardLayout(nextBoardId, {})
+    if (nextShareToken) {
+      await boardCardsStore.fetchBoard(nextBoardId, nextShareToken)
+      await boardCardsStore.fetchCards(nextBoardId, nextShareToken)
+      transientLayouts.value = {}
+      return
+    }
+
+    if (!boardCardsStore.isUserBoard(nextBoardId)) {
+      router.replace(boardCardsStore.getBoardRoute(MAIN_BOARD_KEY))
+      return
+    }
+
+    await boardCardsStore.fetchCards(nextBoardId)
     transientLayouts.value = {}
   },
   { immediate: true },

@@ -56,13 +56,20 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import CardNormal from '@/components/CardNormal.vue'
 import { useBoardsStore } from '@/stores/boards'
-import { MAIN_BOARD_KEY, getCards, pendingCardSelection, pickCardOnBoard } from '@/state/boardCards'
-import { tags } from '@/state/tags'
+import { useBoardCardsStore, MAIN_BOARD_KEY, INVALID_BOARD_ID } from '@/stores/boardCards'
+import { useTagsStore } from '@/stores/tags'
+import { useAuthStore } from '@/stores/auth'
 
 const boardsStore = useBoardsStore()
-const BOARD_ID = MAIN_BOARD_KEY
+const boardCardsStore = useBoardCardsStore()
+const tagsStore = useTagsStore()
+const authStore = useAuthStore()
+const { pendingCardSelection, systemBoardIdsByKind } = storeToRefs(boardCardsStore)
+const { tags } = storeToRefs(tagsStore)
+const boardId = computed(() => systemBoardIdsByKind.value[MAIN_BOARD_KEY] ?? INVALID_BOARD_ID)
 const DEFAULT_CARD_LAYOUT = { col: 1, row: 1, colSpan: 1, rowSpan: 1 }
 const DEFAULT_DYNAMIC_LAYOUT_SPAN = { colSpan: 4, rowSpan: 3 }
 const gridRef = ref(null)
@@ -73,10 +80,8 @@ const resizePreviewLayout = ref(null)
 const isDesktop = ref(false)
 const transientLayouts = ref({})
 
-const cards = computed(() => getCards(BOARD_ID))
-const tagById = computed(() => {
-  return new Map(tags.value.map((tag) => [tag.id, tag]))
-})
+const cards = computed(() => boardCardsStore.getCards(boardId.value))
+const tagById = computed(() => new Map(tags.value.map((tag) => [tag.id, tag])))
 
 const resolveCardTags = (card) => {
   if (!Array.isArray(card.tagIds) || card.tagIds.length === 0) {
@@ -86,23 +91,19 @@ const resolveCardTags = (card) => {
   return card.tagIds.map((tagId) => tagById.value.get(tagId)).filter(Boolean)
 }
 
-const defaultLayouts = {
-  'card-1': { col: 1, row: 1, colSpan: 4, rowSpan: 4 },
-  'card-2': { col: 5, row: 1, colSpan: 5, rowSpan: 5 },
-  'card-3': { col: 10, row: 1, colSpan: 2, rowSpan: 3 },
-}
+const defaultLayouts = {}
 
 const canEdit = computed(() => boardsStore.isLayoutEditMode && isDesktop.value)
 const isCardSelectionMode = computed(() => {
   return (
     pendingCardSelection.value.action !== null &&
-    pendingCardSelection.value.boardId === BOARD_ID &&
+    pendingCardSelection.value.boardId === boardId.value &&
     !canEdit.value
   )
 })
 
-const gridSettings = computed(() => boardsStore.getActiveGridSettings(BOARD_ID))
-const activeLayouts = computed(() => boardsStore.getActiveBoardLayouts(BOARD_ID))
+const gridSettings = computed(() => boardsStore.getActiveGridSettings(boardId.value))
+const activeLayouts = computed(() => boardsStore.getActiveBoardLayouts(boardId.value))
 
 const gridStyle = computed(() => {
   const settings = gridSettings.value
@@ -142,12 +143,16 @@ const dragPreviewStyle = computed(() => {
 
 const dragPreviewIsValid = computed(() => {
   if (draggedCardId.value && dragPreviewLayout.value) {
-    return boardsStore.canPlaceCardLayout(BOARD_ID, draggedCardId.value, dragPreviewLayout.value)
+    return boardsStore.canPlaceCardLayout(
+      boardId.value,
+      draggedCardId.value,
+      dragPreviewLayout.value,
+    )
   }
 
   if (resizeState.value?.cardId && resizePreviewLayout.value) {
     return boardsStore.canPlaceCardLayout(
-      BOARD_ID,
+      boardId.value,
       resizeState.value.cardId,
       resizePreviewLayout.value,
     )
@@ -265,7 +270,7 @@ const onCardClick = (cardId) => {
     return
   }
 
-  pickCardOnBoard(BOARD_ID, cardId)
+  boardCardsStore.pickCardOnBoard(boardId.value, cardId)
 }
 
 const onGridDragOver = (event) => {
@@ -318,7 +323,7 @@ const onGridDrop = (event) => {
   }
 
   if (dragPreviewIsValid.value) {
-    boardsStore.updateDraftCardLayout(BOARD_ID, droppedCardId, {
+    boardsStore.updateDraftCardLayout(boardId.value, droppedCardId, {
       col: preview.col,
       row: preview.row,
       colSpan: preview.colSpan,
@@ -361,7 +366,7 @@ const cleanupResize = () => {
 const stopResize = () => {
   const state = resizeState.value
   if (state && resizePreviewLayout.value && dragPreviewIsValid.value) {
-    boardsStore.updateDraftCardLayout(BOARD_ID, state.cardId, {
+    boardsStore.updateDraftCardLayout(boardId.value, state.cardId, {
       colSpan: resizePreviewLayout.value.colSpan,
       rowSpan: resizePreviewLayout.value.rowSpan,
     })
@@ -448,7 +453,7 @@ const syncTransientLayouts = () => {
     ...activeLayouts.value,
     ...nextTransient,
   }
-  const activeIds = new Set(cards.value.map((card) => card.id))
+  const activeIds = new Set(cards.value.map((card) => String(card.id)))
 
   Object.keys(nextTransient).forEach((cardId) => {
     if (!activeIds.has(cardId) || activeLayouts.value[cardId]) {
@@ -470,10 +475,20 @@ const syncTransientLayouts = () => {
   transientLayouts.value = nextTransient
 }
 
+const loadBoardData = async () => {
+  await boardCardsStore.loadBoards()
+  if (authStore.isAuthenticated) {
+    tagsStore.fetchTags()
+  }
+  if (boardId.value !== INVALID_BOARD_ID) {
+    await boardCardsStore.fetchCards(boardId.value)
+  }
+}
+
 onMounted(() => {
   updateViewportState()
   window.addEventListener('resize', updateViewportState)
-  boardsStore.initializeBoardLayout(BOARD_ID, defaultLayouts)
+  loadBoardData()
 })
 
 onBeforeUnmount(() => {
@@ -495,6 +510,16 @@ watch(
     syncTransientLayouts()
   },
   { immediate: true, deep: true },
+)
+
+watch(
+  boardId,
+  (nextBoardId) => {
+    if (nextBoardId !== INVALID_BOARD_ID) {
+      boardCardsStore.fetchCards(nextBoardId)
+    }
+  },
+  { immediate: true },
 )
 </script>
 

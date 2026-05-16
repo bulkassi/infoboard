@@ -1,82 +1,39 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { ApiError, apiRequest } from '@/api/client'
 
-const DEV_USER_ROLE = {
-  USER: 'user',
+const USER_ROLE = {
+  EMPLOYEE: 'employee',
   ADMIN: 'admin',
   ANONYMOUS: 'anonymous',
 }
 
-const DEV_USERS = {
-  anonymous: {
-    id: null,
-    name: 'Гость',
-    role: DEV_USER_ROLE.ANONYMOUS,
-    accessToken: null,
-    avatar: '',
-  },
-  user: {
-    id: 100,
-    name: 'Обычный пользователь',
-    role: DEV_USER_ROLE.USER,
-    accessToken: 'dev-token-user',
-    avatar: 'https://i.pravatar.cc/150?img=2',
-  },
-  admin: {
-    id: 1,
-    name: 'Администратор',
-    role: DEV_USER_ROLE.ADMIN,
-    accessToken: 'dev-token-admin',
-    avatar: 'https://i.pravatar.cc/150?img=1',
-  },
-}
-
-// Переключайте this key для проверки интерфейса под разными ролями.
-const ACTIVE_DEV_USER_KEY = 'anonymous'
-
-function resolveDevUser(userKey) {
-  return DEV_USERS[userKey] ?? DEV_USERS.anonymous
+const ANONYMOUS_USER = {
+  id: null,
+  name: 'Гость',
+  role: USER_ROLE.ANONYMOUS,
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const initialUser = resolveDevUser(ACTIVE_DEV_USER_KEY)
-  const currentUser = ref({ ...initialUser })
-  const accessToken = ref(initialUser.accessToken)
+  const currentUser = ref({ ...ANONYMOUS_USER })
+  const accessToken = ref('')
+  const isBootstrapped = ref(false)
 
-  const role = computed(() => currentUser.value?.role ?? DEV_USER_ROLE.ANONYMOUS)
-  const isAdmin = computed(() => role.value === DEV_USER_ROLE.ADMIN)
-  const isAuthenticated = computed(() => role.value !== DEV_USER_ROLE.ANONYMOUS)
+  const role = computed(() => currentUser.value?.role ?? USER_ROLE.ANONYMOUS)
+  const isAdmin = computed(() => role.value === USER_ROLE.ADMIN)
+  const isAuthenticated = computed(() => role.value !== USER_ROLE.ANONYMOUS)
   const currentUserProfile = computed(() => ({
     id: currentUser.value?.id ?? null,
     name: currentUser.value?.name ?? '',
-    avatar: currentUser.value?.avatar ?? '',
   }))
 
   function setUserFromApiPayload(payload = {}) {
     currentUser.value = {
       id: Number.isInteger(payload.id) ? payload.id : null,
-      name: String(payload.name ?? payload.username ?? '').trim() || 'Пользователь',
-      role: [DEV_USER_ROLE.ADMIN, DEV_USER_ROLE.USER].includes(payload.role) ? payload.role : DEV_USER_ROLE.ANONYMOUS,
-      accessToken: accessToken.value,
-      avatar: String(payload.avatar ?? '').trim(),
-    }
-  }
-
-  function setAuthenticatedUser(user = {}) {
-    currentUser.value = {
-      id: Number.isInteger(user.id) ? user.id : null,
-      name: String(user.name ?? '').trim() || 'Пользователь',
-      role: user.isAdmin ? DEV_USER_ROLE.ADMIN : DEV_USER_ROLE.USER,
-      accessToken: accessToken.value,
-      avatar: String(user.avatar ?? '').trim(),
-    }
-  }
-
-  function updateCurrentUserProfile(payload = {}) {
-    currentUser.value = {
-      ...currentUser.value,
-      name: String(payload.name ?? currentUser.value?.name ?? '').trim() || currentUser.value?.name,
-      avatar: payload.avatar ?? currentUser.value?.avatar ?? '',
+      name: String(payload.username ?? payload.name ?? '').trim() || 'Пользователь',
+      role: [USER_ROLE.ADMIN, USER_ROLE.EMPLOYEE].includes(payload.role)
+        ? payload.role
+        : USER_ROLE.ANONYMOUS,
     }
   }
 
@@ -86,11 +43,110 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearSession() {
     accessToken.value = ''
-    currentUser.value = { ...DEV_USERS.anonymous }
+    currentUser.value = { ...ANONYMOUS_USER }
+  }
+
+  async function fetchCurrentUser() {
+    if (!accessToken.value) {
+      clearSession()
+      return null
+    }
+
+    const payload = await apiRequest('/users/me', {
+      token: accessToken.value,
+    })
+    setUserFromApiPayload(payload)
+    return currentUser.value
+  }
+
+  async function refreshAccessToken() {
+    const payload = await apiRequest('/auth/refresh', {
+      method: 'POST',
+    })
+    setAccessToken(payload.access_token)
+    return payload.access_token
+  }
+
+  async function bootstrapSession() {
+    if (isBootstrapped.value) {
+      return
+    }
+
+    isBootstrapped.value = true
+    if (accessToken.value) {
+      await fetchCurrentUser()
+      return
+    }
+
+    try {
+      await refreshAccessToken()
+      await fetchCurrentUser()
+    } catch {
+      clearSession()
+    }
+  }
+
+  async function login(username, password) {
+    const payload = await apiRequest('/auth/login', {
+      method: 'POST',
+      form: {
+        username,
+        password,
+      },
+    })
+
+    setAccessToken(payload.access_token)
+    await fetchCurrentUser()
+    return currentUser.value
+  }
+
+  async function logout() {
+    try {
+      await apiRequest('/auth/logout', {
+        method: 'POST',
+        token: accessToken.value || undefined,
+      })
+    } finally {
+      clearSession()
+    }
+  }
+
+  async function updateProfile({ name, password }) {
+    if (!accessToken.value) {
+      return null
+    }
+
+    const updates = {}
+    if (typeof name === 'string' && name.trim()) {
+      updates.username = name.trim()
+    }
+    if (typeof password === 'string' && password.trim()) {
+      updates.password = password
+    }
+
+    const payload = await apiRequest('/users/me', {
+      method: 'PATCH',
+      body: updates,
+      token: accessToken.value,
+    })
+    setUserFromApiPayload(payload)
+    return currentUser.value
+  }
+
+  async function authorizedRequest(path, options = {}) {
+    try {
+      return await apiRequest(path, { ...options, token: accessToken.value })
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await refreshAccessToken()
+        return apiRequest(path, { ...options, token: accessToken.value })
+      }
+      throw error
+    }
   }
 
   return {
-    DEV_USER_ROLE,
+    USER_ROLE,
     currentUser,
     accessToken,
     role,
@@ -98,9 +154,14 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     currentUserProfile,
     setUserFromApiPayload,
-    setAuthenticatedUser,
-    updateCurrentUserProfile,
     setAccessToken,
     clearSession,
+    fetchCurrentUser,
+    refreshAccessToken,
+    bootstrapSession,
+    login,
+    logout,
+    updateProfile,
+    authorizedRequest,
   }
 })

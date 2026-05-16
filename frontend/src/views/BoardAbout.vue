@@ -5,26 +5,25 @@
         {{ aboutTitle }}
       </h1>
 
-      <Editor
-        :modelValue="aboutContent"
+      <QuillEditor
+        v-model="aboutContent"
         readonly
         editorStyle="min-height: 50vh"
-        :pt="{
-          root: { class: 'border-none p-0' },
-          toolbar: { class: 'hidden' },
-          content: { class: 'border-none' },
-        }"
+        class="about-reader-editor"
       />
     </div>
   </section>
 </template>
 
 <script setup>
-import Editor from 'primevue/editor'
+import { storeToRefs } from 'pinia'
+import { useAboutStore } from '@/stores/about'
+import QuillEditor from '@/components/quill/QuillEditor.vue'
 
-import { useAboutBoardState } from '@/state/aboutBoard'
+const aboutStore = useAboutStore()
+const { title: aboutTitle, content: aboutContent } = storeToRefs(aboutStore)
 
-const { aboutTitle, aboutContent } = useAboutBoardState()
+aboutStore.fetchAbout()
 </script>
 
 <style scoped>
@@ -33,8 +32,7 @@ const { aboutTitle, aboutContent } = useAboutBoardState()
   line-height: 1.75;
 }
 
-.about-reader :deep(.p-editor),
-.about-reader :deep(.p-editor-content),
+.about-reader :deep(.quill-editor__content),
 .about-reader :deep(.ql-container) {
   border: none !important;
   box-shadow: none !important;

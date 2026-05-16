@@ -25,5 +25,4 @@ const authStore = useAuthStore()
       <RouterView />
     </div>
   </main>
-  <AppFooter v-if="route.name !== 'login'" />
 </template>

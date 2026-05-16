@@ -1,11 +1,19 @@
 <template>
   <Drawer v-model:visible="visible" position="right" header="Боковая панель">
     <div class="flex flex-col justify-content gap-2">
-      <Button variant="outlined" class="w-full flex-1 justify-start whitespace-normal text-left">
+      <Button
+        variant="outlined"
+        class="w-full flex-1 justify-start whitespace-normal text-left"
+        @click="enterFullscreen"
+      >
         <PhCornersOut :size="32" weight="duotone" />
         Полноэкранный режим
       </Button>
-      <Button variant="outlined" class="w-full flex-1 justify-start whitespace-normal text-left">
+      <Button
+        variant="outlined"
+        class="w-full flex-1 justify-start whitespace-normal text-left"
+        @click="toggleSlideshow"
+      >
         <PhSlideshow :size="32" weight="duotone" />
         Слайд-шоу
       </Button>
@@ -23,6 +31,7 @@
           variant="outlined"
           class="w-full flex-1 justify-start whitespace-normal text-left"
           :disabled="!canCreateCurrentBoardShareLink"
+          @click="openShareLinksDialog"
         >
           <PhShareFat :size="32" weight="duotone" />
           Поделиться доской
@@ -210,6 +219,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { Drawer, Button } from 'primevue'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -232,20 +242,10 @@ import {
 } from '@phosphor-icons/vue'
 
 import { useBoardsStore } from '@/stores/boards'
+import { useBoardCardsStore, MAIN_BOARD_KEY } from '@/stores/boardCards'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissions } from '@/composables/usePermissions'
 import ProfileSettingsPopover from '@/components/profile/ProfileSettingsPopover.vue'
-import {
-  MAIN_BOARD_KEY,
-  deleteUserBoard,
-  getBoardById,
-  getBoardDisplayName,
-  getBoardIdFromRoute,
-  getBoardRoute,
-  isCardBoard,
-  isUserBoard,
-  renameUserBoard,
-} from '@/state/boardCards'
 
 const visible = defineModel('visible')
 const emit = defineEmits([
@@ -254,12 +254,15 @@ const emit = defineEmits([
   'open-card-create',
   'open-card-edit',
   'open-card-delete',
+  'open-share-links',
   'board-deleted',
+  'toggle-slideshow',
 ])
 const route = useRoute()
 const router = useRouter()
 const confirm = useConfirm()
 const boardsStore = useBoardsStore()
+const boardCardsStore = useBoardCardsStore()
 const authStore = useAuthStore()
 const {
   canAccessAdminPage,
@@ -277,19 +280,23 @@ const boardNameError = ref('')
 const profilePopoverRef = ref(null)
 const profileButtonRef = ref(null)
 
+const { systemBoardIdsByKind } = storeToRefs(boardCardsStore)
 const isMainBoardRoute = computed(() => route.path === '/' || route.path === '/main')
-const currentBoardId = computed(() => getBoardIdFromRoute(route))
-const currentBoard = computed(() => getBoardById(currentBoardId.value))
-const isCardBoardRoute = computed(() => isCardBoard(currentBoardId.value))
-const isUserBoardRoute = computed(() => isUserBoard(currentBoardId.value))
+const currentBoardId = computed(() => boardCardsStore.getBoardIdFromRoute(route))
+const currentBoard = computed(() => boardCardsStore.getBoardById(currentBoardId.value))
+const isCardBoardRoute = computed(() => boardCardsStore.isCardBoard(currentBoardId.value))
+const isUserBoardRoute = computed(() => boardCardsStore.isUserBoard(currentBoardId.value))
 const canManageCurrentBoard = computed(() => canManageBoard(currentBoard.value))
 const canManageCurrentBoardCards = computed(() => canManageCards(currentBoard.value))
 const canCreateCurrentBoardShareLink = computed(() => canCreateShareLink(currentBoard.value))
 const isLayoutEditableRoute = computed(
   () => (isMainBoardRoute.value || isUserBoardRoute.value) && canManageCurrentBoardCards.value,
 )
+const mainBoardId = computed(
+  () => systemBoardIdsByKind.value[MAIN_BOARD_KEY] ?? currentBoardId.value,
+)
 const layoutBoardId = computed(() =>
-  isLayoutEditableRoute.value ? currentBoardId.value : MAIN_BOARD_KEY,
+  isLayoutEditableRoute.value ? currentBoardId.value : mainBoardId.value,
 )
 
 const updateViewportState = () => {
@@ -312,8 +319,28 @@ const closeDrawer = () => {
   visible.value = false
 }
 
-const handleLogout = () => {
-  authStore.clearSession()
+const enterFullscreen = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen()
+    } else {
+      await document.exitFullscreen()
+    }
+  } catch (err) {
+    // ignore failures silently
+    // could show toast here in future
+    // console.warn('fullscreen failed', err)
+  }
+}
+
+const toggleSlideshow = () => {
+  // emit event to parent header which manages navigation and timing
+  closeDrawer()
+  emit('toggle-slideshow')
+}
+
+const handleLogout = async () => {
+  await authStore.logout()
   visible.value = false
   router.push('/login')
 }
@@ -335,6 +362,8 @@ const beginBoardLayoutEdit = () => {
 const saveBoardLayoutEdit = () => {
   rowCountError.value = ''
   boardsStore.saveLayoutEdit(layoutBoardId.value)
+  const layouts = boardsStore.getActiveBoardLayouts(layoutBoardId.value)
+  boardCardsStore.persistLayouts(layoutBoardId.value, layouts)
 }
 
 const cancelBoardLayoutEdit = () => {
@@ -387,6 +416,15 @@ const openCardDeletePicker = () => {
   emit('open-card-delete')
 }
 
+const openShareLinksDialog = () => {
+  if (!canCreateCurrentBoardShareLink.value) {
+    return
+  }
+
+  closeDrawer()
+  emit('open-share-links')
+}
+
 const openBoardRenameDialog = () => {
   if (!isUserBoardRoute.value || !currentBoard.value || !canManageCurrentBoard.value) {
     return
@@ -402,7 +440,7 @@ const closeBoardRenameDialog = () => {
   isBoardRenameDialogVisible.value = false
 }
 
-const submitBoardRename = () => {
+const submitBoardRename = async () => {
   const nextName = boardNameDraft.value.trim()
   if (!nextName) {
     boardNameError.value = 'Введите название доски.'
@@ -413,8 +451,9 @@ const submitBoardRename = () => {
     actorUserId: authStore.currentUser.id,
     isAdmin: authStore.isAdmin,
   }
-  const isRenamed = renameUserBoard(currentBoardId.value, nextName, actor)
-  if (!isRenamed) {
+  try {
+    await boardCardsStore.renameUserBoard(currentBoardId.value, nextName, actor)
+  } catch {
     boardNameError.value = 'Не удалось сохранить новое название доски.'
     return
   }
@@ -422,24 +461,21 @@ const submitBoardRename = () => {
   closeBoardRenameDialog()
 }
 
-const deleteCurrentBoard = () => {
+const deleteCurrentBoard = async () => {
   const boardId = currentBoardId.value
-  if (!isUserBoard(boardId)) {
+  if (!boardCardsStore.isUserBoard(boardId)) {
     return
   }
 
-  const isDeleted = deleteUserBoard(boardId, {
+  await boardCardsStore.deleteUserBoard(boardId, {
     actorUserId: authStore.currentUser.id,
     isAdmin: authStore.isAdmin,
   })
-  if (!isDeleted) {
-    return
-  }
 
   emit('board-deleted')
   boardsStore.removeBoardLayoutState(boardId)
   closeDrawer()
-  router.push(getBoardRoute(MAIN_BOARD_KEY))
+  router.push(boardCardsStore.getBoardRoute(MAIN_BOARD_KEY))
 }
 
 const confirmBoardDelete = () => {
@@ -447,7 +483,7 @@ const confirmBoardDelete = () => {
     return
   }
 
-  const boardName = getBoardDisplayName(currentBoardId.value)
+  const boardName = boardCardsStore.getBoardDisplayName(currentBoardId.value)
   confirm.require({
     group: 'board-actions',
     header: 'Подтверждение удаления',

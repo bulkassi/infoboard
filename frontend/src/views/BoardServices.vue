@@ -20,20 +20,20 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import CardService from '@/components/CardService.vue'
-import {
-  SERVICES_BOARD_KEY,
-  getCards,
-  pendingCardSelection,
-  pickCardOnBoard,
-} from '@/state/boardCards'
+import { SERVICES_BOARD_KEY, INVALID_BOARD_ID } from '@/stores/boardCards'
+import { useBoardCardsStore } from '@/stores/boardCards'
 
-const BOARD_ID = SERVICES_BOARD_KEY
-const cards = computed(() => getCards(BOARD_ID))
+const boardCardsStore = useBoardCardsStore()
+const { pendingCardSelection, systemBoardIdsByKind } = storeToRefs(boardCardsStore)
+const boardId = computed(() => systemBoardIdsByKind.value[SERVICES_BOARD_KEY] ?? INVALID_BOARD_ID)
+const cards = computed(() => boardCardsStore.getCards(boardId.value))
 const isCardSelectionMode = computed(() => {
   return (
-    pendingCardSelection.value.action !== null && pendingCardSelection.value.boardId === BOARD_ID
+    pendingCardSelection.value.action !== null &&
+    pendingCardSelection.value.boardId === boardId.value
   )
 })
 
@@ -45,8 +45,29 @@ const onCardClick = (cardId, event) => {
   event.preventDefault()
   event.stopPropagation()
 
-  pickCardOnBoard(BOARD_ID, cardId)
+  boardCardsStore.pickCardOnBoard(boardId.value, cardId)
 }
+
+const loadBoard = async () => {
+  await boardCardsStore.loadBoards()
+  if (boardId.value !== INVALID_BOARD_ID) {
+    await boardCardsStore.fetchCards(boardId.value)
+  }
+}
+
+onMounted(() => {
+  loadBoard()
+})
+
+watch(
+  boardId,
+  (nextBoardId) => {
+    if (nextBoardId !== INVALID_BOARD_ID) {
+      boardCardsStore.fetchCards(nextBoardId)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>

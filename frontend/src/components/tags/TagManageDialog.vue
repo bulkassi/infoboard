@@ -85,6 +85,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 
 import { Dialog, Button, Listbox, Message } from 'primevue'
 import { PhBookmark, PhPencilSimple, PhPlus, PhTrash } from '@phosphor-icons/vue'
@@ -93,8 +94,8 @@ import InfoTag from './InfoTag.vue'
 import TagEditDialog from './TagEditDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissions } from '@/composables/usePermissions'
-import { removeTagFromMainStyleCards } from '@/state/boardCards'
-import { getNextTagId, reserveTagId, tags } from '@/state/tags'
+import { useBoardCardsStore } from '@/stores/boardCards'
+import { useTagsStore } from '@/stores/tags'
 
 const visible = defineModel('visible')
 const tagEditDialogVisible = ref(false)
@@ -102,6 +103,9 @@ const returnToManageAfterEdit = ref(false)
 const selectedTagId = ref(null)
 const editingTag = ref(null)
 const authStore = useAuthStore()
+const boardCardsStore = useBoardCardsStore()
+const tagsStore = useTagsStore()
+const { tags } = storeToRefs(tagsStore)
 const { canManageTags, canSetTagGlobal, canEditTag, canDeleteTag } = usePermissions()
 const visibleTags = computed(() => tags.value)
 
@@ -137,19 +141,19 @@ const tagEdit = (tag) => {
   openTagEditDialog()
 }
 
-const tagDelete = (tag) => {
+const tagDelete = async (tag) => {
   if (!canDeleteTag(tag)) {
     return
   }
 
-  tags.value = tags.value.filter((item) => item.id !== tag.id)
-  removeTagFromMainStyleCards(tag.id)
+  await tagsStore.deleteTag(tag.id)
+  boardCardsStore.removeTagFromMainStyleCards(tag.id)
   if (selectedTagId.value === tag.id) {
     selectedTagId.value = null
   }
 }
 
-const onTagSave = (payload) => {
+const onTagSave = async (payload) => {
   const existingTag = tags.value.find((tag) => tag.id === payload.id)
   if (existingTag && !canEditTag(existingTag)) {
     return
@@ -160,32 +164,32 @@ const onTagSave = (payload) => {
   }
 
   const normalizedTag = {
-    id: payload.id,
     name: payload.tagName,
     textColor: payload.tagTextColor,
     bgColor: payload.tagBgColor,
     isGlobal: canSetTagGlobal.value ? payload.tagIsGlobal : Boolean(existingTag?.isGlobal),
-    ownerUserId: existingTag?.ownerUserId ?? authStore.currentUser.id,
   }
 
-  if (normalizedTag.id === null || normalizedTag.id === undefined) {
-    normalizedTag.id = getNextTagId()
-    tags.value.push(normalizedTag)
-  } else {
-    reserveTagId(normalizedTag.id)
-    const index = tags.value.findIndex((tag) => tag.id === normalizedTag.id)
-    if (index !== -1) {
-      tags.value[index] = normalizedTag
-    }
+  if (payload.id === null || payload.id === undefined) {
+    const created = await tagsStore.createTag(normalizedTag)
+    selectedTagId.value = created.id
+    return
   }
 
-  selectedTagId.value = normalizedTag.id
+  const updated = await tagsStore.updateTag(payload.id, normalizedTag)
+  selectedTagId.value = updated.id
 }
 
 watch(tagEditDialogVisible, (isVisible) => {
   if (!isVisible && returnToManageAfterEdit.value) {
     visible.value = true
     returnToManageAfterEdit.value = false
+  }
+})
+
+watch(visible, (isVisible) => {
+  if (isVisible && tags.value.length === 0) {
+    tagsStore.fetchTags()
   }
 })
 </script>

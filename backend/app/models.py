@@ -84,8 +84,8 @@ class CardBase(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class CardCommon(CardBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True, foreign_key="cardbase.id")
+class CardCommon(SQLModel, table=True):
+    card_id: int = Field(primary_key=True, foreign_key="cardbase.id")
     title: Optional[str] = None
     content: Optional[str] = None
     col: Optional[int] = 1
@@ -95,20 +95,20 @@ class CardCommon(CardBase, table=True):
 
 
 class TagToCard(SQLModel, table=True):
-    card_id: int = Field(foreign_key="cardcommon.id", primary_key=True)
+    card_id: int = Field(foreign_key="cardcommon.card_id", primary_key=True)
     tag_id: int = Field(foreign_key="tag.id", primary_key=True)
 
 
-class CardEmployee(CardBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True, foreign_key="cardbase.id")
+class CardEmployee(SQLModel, table=True):
+    card_id: int = Field(primary_key=True, foreign_key="cardbase.id")
     surname: Optional[str] = None
     name: Optional[str] = None
     patronymic: Optional[str] = None
     position: Optional[str] = None
 
 
-class CardService(CardBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True, foreign_key="cardbase.id")
+class CardService(SQLModel, table=True):
+    card_id: int = Field(primary_key=True, foreign_key="cardbase.id")
     name: Optional[str] = None
     description: Optional[str] = None
     link: Optional[str] = None
@@ -219,7 +219,7 @@ class CardRead(SQLModel):
     row: Optional[int] = None
     col_span: Optional[int] = None
     row_span: Optional[int] = None
-    file_id: Optional[int]
+    file_id: Optional[int] = None
     title: Optional[str] = None
     content: Optional[str] = None
     surname: Optional[str] = None

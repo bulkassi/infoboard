@@ -1,46 +1,15 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 
-const DEFAULT_USERS = [
-  {
-    id: 1,
-    name: 'Администратор',
-    password: 'admin123',
-    avatar: 'https://i.pravatar.cc/150?img=1',
-    isAdmin: true,
-  },
-  {
-    id: 100,
-    name: 'Обычный пользователь',
-    password: 'user123',
-    avatar: 'https://i.pravatar.cc/150?img=2',
-    isAdmin: false,
-  },
-  {
-    id: 101,
-    name: 'Анна Волкова',
-    password: 'anna123',
-    avatar: 'https://i.pravatar.cc/150?img=3',
-    isAdmin: true,
-  },
-  {
-    id: 102,
-    name: 'Дмитрий Соколов',
-    password: 'dmitry123',
-    avatar: 'https://i.pravatar.cc/150?img=4',
-    isAdmin: false,
-  },
-  {
-    id: 103,
-    name: 'Екатерина Морозова',
-    password: 'ekaterina123',
-    avatar: 'https://i.pravatar.cc/150?img=5',
-    isAdmin: false,
-  },
-]
+const ROLE = {
+  ADMIN: 'admin',
+  EMPLOYEE: 'employee',
+}
 
 export const useUsersStore = defineStore('users', () => {
-  const users = ref(DEFAULT_USERS.map((user) => ({ ...user })))
+  const authStore = useAuthStore()
+  const users = ref([])
 
   function listUsers() {
     return users.value
@@ -50,83 +19,80 @@ export const useUsersStore = defineStore('users', () => {
     return users.value.find((user) => user.id === userId) ?? null
   }
 
-  function findUserByCredentials(username, password) {
-    const normalizedUsername = String(username ?? '').trim().toLowerCase()
-    const normalizedPassword = String(password ?? '')
-
-    return (
-      users.value.find(
-        (user) =>
-          user.name.trim().toLowerCase() === normalizedUsername && user.password === normalizedPassword,
-      ) ?? null
-    )
-  }
-
-  function createUser(payload) {
-    const maxId = users.value.length > 0 ? Math.max(...users.value.map((user) => user.id)) : 0
-    const nextUser = {
-      id: maxId + 1,
-      name: String(payload.name ?? '').trim(),
-      password: String(payload.password ?? ''),
-      avatar: String(payload.avatar ?? ''),
-      isAdmin: Boolean(payload.isAdmin),
+  function normalizeUser(payload) {
+    return {
+      id: payload.id,
+      name: payload.username ?? payload.name ?? 'Пользователь',
+      role: payload.role ?? ROLE.EMPLOYEE,
+      isAdmin: payload.role === ROLE.ADMIN,
     }
-
-    users.value = [...users.value, nextUser]
-    return nextUser
   }
 
-  function updateUser(userId, payload) {
+  async function fetchUsers() {
+    const response = await authStore.authorizedRequest('/users')
+    users.value = Array.isArray(response) ? response.map(normalizeUser) : []
+    return users.value
+  }
+
+  async function createUser(payload) {
+    const response = await authStore.authorizedRequest('/users', {
+      method: 'POST',
+      body: {
+        username: String(payload.name ?? '').trim(),
+        password: String(payload.password ?? ''),
+        role: payload.isAdmin ? ROLE.ADMIN : ROLE.EMPLOYEE,
+      },
+    })
+
+    const user = normalizeUser(response)
+    users.value = [...users.value, user]
+    return user
+  }
+
+  async function updateUser(userId, payload) {
+    const response = await authStore.authorizedRequest(`/users/${userId}`, {
+      method: 'PATCH',
+      body: {
+        username: payload.name ? String(payload.name).trim() : undefined,
+        password: payload.password ? String(payload.password) : undefined,
+        role:
+          typeof payload.isAdmin === 'boolean'
+            ? payload.isAdmin
+              ? ROLE.ADMIN
+              : ROLE.EMPLOYEE
+            : undefined,
+      },
+    })
+
+    const updated = normalizeUser(response)
     const index = users.value.findIndex((user) => user.id === userId)
-    if (index === -1) {
-      return null
+    if (index !== -1) {
+      users.value[index] = updated
+      users.value = [...users.value]
     }
-
-    const previous = users.value[index]
-    const nextUser = {
-      ...previous,
-      name: String(payload.name ?? previous.name).trim() || previous.name,
-      password: payload.password ?? previous.password,
-      avatar: payload.avatar ?? previous.avatar,
-      isAdmin: typeof payload.isAdmin === 'boolean' ? payload.isAdmin : previous.isAdmin,
-    }
-
-    if (
-      typeof previous.avatar === 'string' &&
-      previous.avatar.startsWith('blob:') &&
-      previous.avatar !== nextUser.avatar
-    ) {
-      URL.revokeObjectURL(previous.avatar)
-    }
-
-    users.value[index] = nextUser
-    users.value = [...users.value]
-    return nextUser
+    return updated
   }
 
-  function deleteUser(userId) {
-    const index = users.value.findIndex((user) => user.id === userId)
-    if (index === -1) {
-      return false
-    }
-
-    const [removed] = users.value.splice(index, 1)
-    users.value = [...users.value]
-
-    if (removed.avatar?.startsWith('blob:')) {
-      URL.revokeObjectURL(removed.avatar)
-    }
-
+  async function deleteUser(userId) {
+    await authStore.authorizedRequest(`/users/${userId}`, {
+      method: 'DELETE',
+    })
+    users.value = users.value.filter((user) => user.id !== userId)
     return true
+  }
+
+  function clearUsers() {
+    users.value = []
   }
 
   return {
     users,
     listUsers,
     getUserById,
-    findUserByCredentials,
+    fetchUsers,
     createUser,
     updateUser,
     deleteUser,
+    clearUsers,
   }
 })
