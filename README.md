@@ -16,3 +16,5 @@ docker compose -f docker-compose.yml up -d --build.
 ```
 
 This will build the images and run the containers of the project.
+
+For environmental varibales needed to run the project check `.env.example` files.
