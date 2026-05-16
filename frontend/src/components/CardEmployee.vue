@@ -1,7 +1,16 @@
 <template>
-  <Card>
+  <Card
+    :pt="{
+      root: 'h-[380px] w-[260px] p-6 flex flex-col',
+      header: 'min-h-0 p-0 overflow-hidden',
+      title: 'text-center text-brand-500',
+      content: 'text-center',
+    }"
+  >
     <template #header>
-      <Avatar :image="imageSrc" shape="circle" />
+      <div class="aspect-square w-full overflow-hidden rounded-full border border-brand-500">
+        <img :src="imageSrc" alt="Фото сотрудника" class="block h-full w-full object-cover" />
+      </div>
     </template>
     <template #title>{{ surname }} {{ name }} {{ patronymic }}</template>
     <template #content>{{ position }}</template>
@@ -10,30 +19,6 @@
 
 <script setup>
 import Card from 'primevue/card'
-import Avatar from 'primevue/avatar'
 
 defineProps(['imageSrc', 'surname', 'name', 'patronymic', 'position'])
 </script>
-
-<style scoped>
-.p-card {
-  height: 380px;
-  width: 260px;
-  padding: 24px;
-}
-
-:deep(.p-card-title),
-:deep(.p-card-content) {
-  text-align: center;
-}
-
-:deep(.p-card-title) {
-  color: #025ea1;
-}
-
-.p-avatar {
-  width: 100%;
-  height: 100%;
-  border: 1px solid #025ea1;
-}
-</style>

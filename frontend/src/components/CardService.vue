@@ -1,8 +1,19 @@
 <template>
-  <Button class="service-button" as="a" :href="link" target="_blank" rel="noopener" unstyled>
-    <Card>
+  <Button as="a" :href="link" target="_blank" rel="noopener" unstyled>
+    <Card
+      :pt="{
+        root: 'flex h-[160px] w-[460px] flex-row items-center gap-4 p-6 bg-(--p-card-background) text-(--p-card-color) shadow-(--p-card-shadow) border-(--pa-card-border-radius)',
+        header: 'h-full aspect-square shrink-0',
+        body: 'flex flex-1 flex-col justify-center text-left',
+        title: 'text-left text-brand-500',
+        content: 'text-left',
+      }"
+      unstyled
+    >
       <template #header>
-        <Avatar :image="imageSrc" shape="circle" />
+        <div class="h-full w-full overflow-hidden rounded-[10%]">
+          <img :src="imageSrc" alt="Логотип сервиса" class="block h-full w-full object-cover" />
+        </div>
       </template>
       <template #title>{{ serviceName }}</template>
       <template #content>{{ serviceDesc }}</template>
@@ -13,52 +24,6 @@
 <script setup>
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Avatar from 'primevue/avatar'
 
 defineProps(['link', 'imageSrc', 'serviceName', 'serviceDesc'])
 </script>
-
-<style scoped>
-:deep(.p-card) {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 16px;
-  height: 160px;
-  width: 460px;
-  padding: 24px;
-}
-
-:deep(.p-card-header) {
-  height: 100%;
-  aspect-ratio: 1 / 1;
-  flex: 0 0 auto;
-}
-
-:deep(.p-card-body) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: left;
-}
-
-:deep(.p-card-title),
-:deep(.p-card-content) {
-  text-align: left;
-}
-
-:deep(.p-avatar) {
-  width: 100%;
-  height: 100%;
-}
-
-:deep(.p-card-title) {
-  color: #025ea1;
-}
-
-.p-avatar {
-  width: 100%;
-  height: 100%;
-}
-</style>

@@ -1,11 +1,19 @@
 import { definePreset, palette } from '@primeuix/themes'
 import Aura from '@primeuix/themes/aura'
 
+const BRAND_PRIMARY = '#025EA1'
+
 export const MyPreset = definePreset(Aura, {
   semantic: {
-    primary: palette('#025EA1'),
+    primary: palette(BRAND_PRIMARY),
   },
   components: {
+    button: {
+      root: {
+        paddingX: '12px',
+        paddingY: '4px',
+      },
+    },
     card: {
       border: {
         radius: '4px',
@@ -21,17 +29,31 @@ export const MyPreset = definePreset(Aura, {
         },
       },
     },
+    colorPicker: {
+      panel: {
+        borderColor: BRAND_PRIMARY,
+      },
+      handle: {
+        color: BRAND_PRIMARY,
+      },
+    },
     select: {
       dropdown: {
-        color: '#025EA1',
+        color: BRAND_PRIMARY,
       },
       root: {
         borderColor: '{primary.100}',
         hoverBorderColor: '{primary.400}',
         focusBorderColor: '{primary.600}',
 
-        placeholderColor: '#025EA1',
-        color: '#025EA1',
+        placeholderColor: BRAND_PRIMARY,
+        color: BRAND_PRIMARY,
+      },
+    },
+    avatar: {
+      root: {
+        width: 'auto',
+        height: 'auto',
       },
     },
   },

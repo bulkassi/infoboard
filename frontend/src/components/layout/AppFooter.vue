@@ -1,22 +1,5 @@
 <template>
-  <footer>
-    <p class="text">Здесь должен быть важный текст (и еще что-то...)</p>
+  <footer class="flex items-center justify-center bg-gray-300 p-5">
+    <p>Здесь должен быть важный текст (и еще что-то...)</p>
   </footer>
 </template>
-
-<style scoped>
-footer {
-  width: auto;
-  padding: 20px;
-
-  background-color: lightgray;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.text {
-  background-color: lightgray;
-}
-</style>

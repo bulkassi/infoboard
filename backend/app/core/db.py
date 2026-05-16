@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL, echo=False)
+engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI), echo=False)
 
 
 def init_db() -> None:

@@ -1,49 +1,83 @@
 <template>
-  <div class="board">
-    <CardService
-      link="https://ya.ru/"
-      image-src="https://img.icons8.com/external-others-inmotus-design/1200/external-Yandex-browser-others-inmotus-design-2.jpg"
-      service-name="Яндекс"
-      service-desc="Партнер предприятия"
-    />
-    <CardService
-      link="https://1c.ru/"
-      image-src="https://online-kassa.ru/wp-content/uploads/2023/12/1S_LOGO_PNG.webp"
-      service-name="1С"
-      service-desc="Официальный партнер предприятия уже на протяжении долгого времени!"
-    />
+  <div
+    class="box-border flex flex-wrap justify-center items-center content-center gap-4 overflow-y-auto p-4"
+  >
+    <div
+      v-for="card in cards"
+      :key="card.id"
+      class="rounded-md"
+      :class="{ 'card-selectable': isCardSelectionMode }"
+      @click="onCardClick(card.id, $event)"
+    >
+      <CardService
+        :link="card.link"
+        :image-src="card.imageSrc"
+        :service-name="card.serviceName"
+        :service-desc="card.serviceDesc"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import CardService from '@/components/CardService.vue'
-import { useBoardsStore } from '@/stores/boards'
+import { SERVICES_BOARD_KEY, INVALID_BOARD_ID } from '@/stores/boardCards'
+import { useBoardCardsStore } from '@/stores/boardCards'
 
-const boardsStore = useBoardsStore()
-const BOARD_ID = 3
-
-const boardName = computed(() => boardsStore.boardsById[BOARD_ID]?.name || 'Services')
-
-onMounted(async () => {
-  await boardsStore.fetchBoard(BOARD_ID)
+const boardCardsStore = useBoardCardsStore()
+const { pendingCardSelection, systemBoardIdsByKind } = storeToRefs(boardCardsStore)
+const boardId = computed(() => systemBoardIdsByKind.value[SERVICES_BOARD_KEY] ?? INVALID_BOARD_ID)
+const cards = computed(() => boardCardsStore.getCards(boardId.value))
+const isCardSelectionMode = computed(() => {
+  return (
+    pendingCardSelection.value.action !== null &&
+    pendingCardSelection.value.boardId === boardId.value
+  )
 })
+
+const onCardClick = (cardId, event) => {
+  if (!isCardSelectionMode.value) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  boardCardsStore.pickCardOnBoard(boardId.value, cardId)
+}
+
+const loadBoard = async () => {
+  await boardCardsStore.loadBoards()
+  if (boardId.value !== INVALID_BOARD_ID) {
+    await boardCardsStore.fetchCards(boardId.value)
+  }
+}
+
+onMounted(() => {
+  loadBoard()
+})
+
+watch(
+  boardId,
+  (nextBoardId) => {
+    if (nextBoardId !== INVALID_BOARD_ID) {
+      boardCardsStore.fetchCards(nextBoardId)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
-.board {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 16px;
-
-  overflow-y: auto; /* vertical scroll when too tall */
-  padding: 16px;
-  box-sizing: border-box;
+.card-selectable {
+  cursor: pointer;
+  outline: 2px solid rgba(2, 94, 161, 0.45);
+  border-radius: 0.5rem;
 }
 
-.board-title {
-  width: 100%;
-  margin: 0;
+.card-selectable:hover {
+  outline-color: rgba(2, 94, 161, 0.8);
 }
 </style>
