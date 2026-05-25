@@ -12,7 +12,7 @@ This project uses:
 Run following command at the root of the project
 
 ```sh
-docker compose -f docker-compose.yml up -d --build.
+docker compose -f docker-compose.yml up -d --build
 ```
 
 This will build the images and run the containers of the project.
