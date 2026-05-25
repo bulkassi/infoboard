@@ -34,15 +34,6 @@ const BOARD_KIND_BY_ROUTE = {
   '/services': BOARD_KIND.SERVICES,
 }
 
-const DEFAULT_IMAGE_BY_KIND = {
-  [BOARD_KIND.MAIN]:
-    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
-  [BOARD_KIND.EMPLOYEES]:
-    'https://yt3.googleusercontent.com/zqWZEp5yBw-Ap3B5ljLA5y66MnJTWAMuGH0T-8usRA0jUA-Y4il0jcqrSHGOa0XX8zYeHr0yF_w=s900-c-k-c0x00ffffff-no-rj',
-  [BOARD_KIND.SERVICES]:
-    'https://img.icons8.com/external-others-inmotus-design/1200/external-Yandex-browser-others-inmotus-design-2.jpg',
-}
-
 export const useBoardCardsStore = defineStore('boardCards', () => {
   const authStore = useAuthStore()
   const usersStore = useUsersStore()
@@ -226,18 +217,18 @@ export const useBoardCardsStore = defineStore('boardCards', () => {
     )
   }
 
-  function buildCardImageSrc(card, boardKind) {
+  function buildCardImageSrc(card) {
     if (Number.isInteger(card.file_id)) {
       return buildFileUrl(card.file_id)
     }
-    return DEFAULT_IMAGE_BY_KIND[boardKind] ?? ''
+    return ''
   }
 
   function mapCard(card, boardKind) {
     const base = {
       id: card.id,
       type: card.type,
-      imageSrc: buildCardImageSrc(card, boardKind),
+      imageSrc: buildCardImageSrc(card),
       fileId: card.file_id ?? null,
     }
 
